@@ -4,6 +4,7 @@ import 'package:seat_booking_app/screens/my_bookings_page.dart';
 import 'package:seat_booking_app/screens/office_seats_page.dart';
 import 'package:seat_booking_app/screens/traffic_info_page.dart';
 import 'package:seat_booking_app/screens/weather_page.dart';
+import 'package:seat_booking_app/utils/app_colors.dart';
 import 'package:seat_booking_app/widgets/custom_app_bar.dart';
 
 void main() {
@@ -18,7 +19,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Flutter Demo',
       theme: ThemeData.dark().copyWith(
-        scaffoldBackgroundColor: const Color(0xFF232D3F),
+        scaffoldBackgroundColor: AppColors.background,
         colorScheme: ColorScheme.fromSeed(
           seedColor: Colors.deepPurple,
           brightness: Brightness.dark,
@@ -139,7 +140,7 @@ class _MyHomePageState extends State<MyHomePage> {
           ],
         ),
       ),
-      body: Container(color: Colors.white38), // Empty body for now
+      body: Container(color: AppColors.background), // Empty body for now
     );
   }
 

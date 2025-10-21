@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:seat_booking_app/utils/app_colors.dart';
 
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
@@ -17,11 +18,11 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              Color(0xFF1F2937),
-              Color(0xFF4B5563),
+              AppColors.appBarGradientStart,
+              AppColors.appBarGradientEnd,
             ],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
+            begin: Alignment.bottomCenter,
+            end: Alignment.topCenter,
           ),
         ),
       ),
@@ -35,7 +36,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
             height: 40,
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [Color(0xFF1F2937), Color(0xFF4B5563)],
+                colors: [AppColors.appBarGradientStart, AppColors.appBarGradientEnd],
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
               ),
@@ -64,7 +65,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
           child: Container(
             width: 120,
             decoration: BoxDecoration(
-              color: const Color(0xFFE0E0E0),
+              color: AppColors.accent,
               borderRadius: BorderRadius.circular(12),
             ),
           ),
