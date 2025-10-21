@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:seat_booking_mobile/utils/app_colors.dart';
 
 class CustomDrawer extends StatefulWidget {
   const CustomDrawer({super.key});
@@ -13,14 +14,14 @@ class _CustomDrawerState extends State<CustomDrawer> {
   @override
   Widget build(BuildContext context) {
     return Drawer(
-      backgroundColor: const Color(0xFF374151),
+      backgroundColor: AppColors.albastruInchis,
       child: Column(
         children: [
           Padding(
             padding: const EdgeInsets.only(top: 50.0, left: 16.0, right: 16.0, bottom: 20.0),
-            child: GestureDetector(  // <—— aici
+            child: GestureDetector(
               onTap: () {
-                Navigator.pushNamed(context, '/'); // ruta ta
+                Navigator.pushNamed(context, '/');
               },
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -33,7 +34,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                         width: 60,
                         height: 60,
                         decoration: BoxDecoration(
-                          color: const Color(0xFFE0E0E0),
+                          color: AppColors.accent,
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),

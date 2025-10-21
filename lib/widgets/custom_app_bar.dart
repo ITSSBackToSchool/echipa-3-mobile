@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:seat_booking_app/utils/app_colors.dart';
+import 'package:seat_booking_mobile/utils/app_colors.dart';
 
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;

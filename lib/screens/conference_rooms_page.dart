@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:seat_booking_app/widgets/custom_app_bar.dart';
-import 'package:seat_booking_app/widgets/custom_drawer.dart';
+import 'package:seat_booking_mobile/widgets/custom_app_bar.dart';
+import 'package:seat_booking_mobile/widgets/custom_drawer.dart';
 
 class ConferenceRoomsPage extends StatelessWidget {
   const ConferenceRoomsPage({super.key});
