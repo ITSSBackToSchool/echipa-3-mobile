@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:seat_booking_app/screens/conference_rooms_page.dart';
+import 'package:seat_booking_app/screens/office_seats_page.dart';
+import 'package:seat_booking_app/screens/my_bookings_page.dart';
+import 'package:seat_booking_app/screens/weather_page.dart';
+import 'package:seat_booking_app/screens/traffic_info_page.dart';
 
 void main() {
   runApp(const MyApp());
@@ -18,7 +23,15 @@ class MyApp extends StatelessWidget {
           brightness: Brightness.dark,
         ),
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      initialRoute: '/',
+      routes: {
+        '/': (context) => const MyHomePage(title: 'Flutter Demo Home Page'),
+        '/office-seats': (context) => const OfficeSeatsPage(),
+        '/conference-rooms': (context) => const ConferenceRoomsPage(),
+        '/my-bookings': (context) => const MyBookingsPage(),
+        '/weather': (context) => const WeatherPage(),
+        '/traffic-info': (context) => const TrafficInfoPage(),
+      },
     );
   }
 }
@@ -161,11 +174,11 @@ class _MyHomePageState extends State<MyHomePage> {
                 children: [
                   _buildExpansionTile(),
                   const SizedBox(height: 10),
-                  _buildDrawerButton('My Bookings'),
+                  _buildDrawerButton('My Bookings', '/my-bookings'),
                   const SizedBox(height: 10),
-                  _buildDrawerButton('Weather'),
+                  _buildDrawerButton('Weather', '/weather'),
                   const SizedBox(height: 10),
-                  _buildDrawerButton('Traffic Info'),
+                  _buildDrawerButton('Traffic Info', '/traffic-info'),
                 ],
               ),
             ),
@@ -230,12 +243,18 @@ class _MyHomePageState extends State<MyHomePage> {
                 ListTile(
                   contentPadding: const EdgeInsets.only(left: 32.0),
                   title: const Text('Office Seats', style: TextStyle(color: Colors.black87)),
-                  onTap: () {},
+                  onTap: () {
+                    Navigator.pop(context); // Close drawer
+                    Navigator.pushNamed(context, '/office-seats');
+                  },
                 ),
                 ListTile(
                   contentPadding: const EdgeInsets.only(left: 32.0),
                   title: const Text('Conference Rooms', style: TextStyle(color: Colors.black87)),
-                  onTap: () {},
+                  onTap: () {
+                    Navigator.pop(context); // Close drawer
+                    Navigator.pushNamed(context, '/conference-rooms');
+                  },
                 ),
               ],
             ),
@@ -244,12 +263,15 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  Widget _buildDrawerButton(String title) {
+  Widget _buildDrawerButton(String title, String routeName) {
     return Container(
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
       child: ListTile(
         title: Text(title, style: const TextStyle(color: Colors.black)),
-        onTap: () {},
+        onTap: () {
+          Navigator.pop(context); // Close drawer
+          Navigator.pushNamed(context, routeName);
+        },
       ),
     );
   }
