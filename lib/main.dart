@@ -37,26 +37,52 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        leadingWidth: 100,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Color(0xFF1F2937),
+                Color(0xFF4B5563),
+              ],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+          ),
+        ),
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: Builder(
-          builder: (context) => IconButton(
-            icon: Container(
-
-              margin: const EdgeInsets.only(left: 0.1,right: 0.1),
+          builder: (context) => GestureDetector(
+            onTap: () => Scaffold.of(context).openDrawer(),
+            child: Container(
+              width: 100,
+              height: 40,
               decoration: BoxDecoration(
-                border: Border.all(color: Colors.white, width: 1),
-                borderRadius: BorderRadius.circular(12.0),
+                gradient: LinearGradient(
+                  colors: [Color(0xFF1F2937), Color(0xFF4B5563)],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+                border: Border(
+                  top: BorderSide(color: Colors.white, width: 1),
+                  right: BorderSide(color: Colors.white, width: 1),
+                  bottom: BorderSide(color: Colors.white, width: 1),
+                ),
+                borderRadius: const BorderRadius.only(
+                  topRight: Radius.circular(12.0),
+                  bottomRight: Radius.circular(12.0),
+                ),
               ),
-              child: const Center(
-                child: Icon(Icons.arrow_forward, size: 20, color: Colors.white),
+              child: const Icon(
+                Icons.arrow_forward,
+                color: Colors.white,
+                size: 35,
               ),
             ),
-            onPressed: () => Scaffold.of(context).openDrawer(),
-            tooltip: MaterialLocalizations.of(context).openAppDrawerTooltip,
           ),
         ),
+
         title: const Text(''),
         actions: [
           Padding(
@@ -80,12 +106,17 @@ class _MyHomePageState extends State<MyHomePage> {
               children: <Widget>[
                 const Divider(color: Colors.white54, thickness: 1.5),
                 const SizedBox(height: 12.0),
-                const Text(
-                  'Home',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 32,
-                    fontWeight: FontWeight.w500,
+
+                const Padding(
+                  padding: EdgeInsets.only(left: 16.0),
+
+                  child: Text(
+                    'Home',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 32,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
               ],
