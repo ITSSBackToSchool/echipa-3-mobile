@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:seat_booking_app/widgets/custom_app_bar.dart';
+import 'package:seat_booking_app/widgets/custom_drawer.dart';
 
 class TrafficInfoPage extends StatelessWidget {
   const TrafficInfoPage({super.key});
@@ -6,9 +8,8 @@ class TrafficInfoPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Traffic Info'),
-      ),
+      appBar: const CustomAppBar(title: 'Traffic Info'),
+      drawer: const CustomDrawer(),
       body: const Center(
         child: Text('This is the Traffic Info page.'),
       ),
