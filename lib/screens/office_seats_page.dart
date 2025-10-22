@@ -89,11 +89,11 @@ class _OfficeSeatsPageState extends State<OfficeSeatsPage> {
               ),
             ),
             Container(
-              color: AppColors.albastruInchis,
+              color: AppColors.gri,
               child: const TabBar(
                 indicatorColor: AppColors.accent,
-                labelColor: AppColors.accent,
-                unselectedLabelColor: AppColors.gri,
+                labelColor: AppColors.albastruInchis,
+                unselectedLabelColor: AppColors.albastruInchis,
                 tabs: [
                   Tab(text: 'Parter'),
                   Tab(text: 'Etaj 1'),
@@ -102,12 +102,15 @@ class _OfficeSeatsPageState extends State<OfficeSeatsPage> {
               ),
             ),
             Expanded(
-              child: TabBarView(
-                children: [
-                  _buildSeatGrid(),
-                  _buildSeatGrid(),
-                  _buildSeatGrid(),
-                ],
+              child: Container(
+                color: AppColors.gri,
+                child: TabBarView(
+                  children: [
+                    _buildSeatGrid(),
+                    _buildSeatGrid(),
+                    _buildSeatGrid(),
+                  ],
+                ),
               ),
             ),
           ],
@@ -131,7 +134,7 @@ class _OfficeSeatsPageState extends State<OfficeSeatsPage> {
 
         Color seatColor;
         if (isSelected) {
-          seatColor = AppColors.portocaliu;
+          seatColor = AppColors.accent;
         } else if (isAvailable) {
           seatColor = AppColors.verde;
         } else {
