@@ -26,7 +26,6 @@ class _OfficeSeatsPageState extends State<OfficeSeatsPage>
     _tabController = TabController(length: 3, vsync: this);
     _tabController.addListener(() {
       setState(() {
-        // Reset selection when changing floor
         _selectedSeatIndex = null;
       });
     });
@@ -124,9 +123,8 @@ class _OfficeSeatsPageState extends State<OfficeSeatsPage>
             ),
             Container(
               color: AppColors.gri,
-              height: 400, // Give TabBarView a fixed height to prevent layout errors
-              child: TabBarView(
-                controller: _tabController,
+              child: IndexedStack(
+                index: _tabController.index,
                 children: [
                   _buildSeatGrid(),
                   _buildSeatGrid(),
@@ -309,14 +307,15 @@ class _OfficeSeatsPageState extends State<OfficeSeatsPage>
 
   Widget _buildSeatGrid() {
     return GridView.builder(
-      physics: const NeverScrollableScrollPhysics(), // Prevents internal scrolling
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
       padding: const EdgeInsets.all(24.0),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 4,
-        crossAxisSpacing: 24.0,
-        mainAxisSpacing: 24.0,
+        crossAxisCount: 5, // Changed to 5
+        crossAxisSpacing: 16.0,
+        mainAxisSpacing: 16.0,
       ),
-      itemCount: 17, // Updated seat count
+      itemCount: 17,
       itemBuilder: (context, index) {
         final bool isAvailable = ![2, 5, 8, 9, 13, 14].contains(index);
         final bool isSelected = _selectedSeatIndex == index;
