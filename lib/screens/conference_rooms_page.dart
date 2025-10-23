@@ -172,6 +172,8 @@ class _ConferenceRoomsPageState extends State<ConferenceRoomsPage>
                 height: 80,
                 fit: BoxFit.cover,
 
+
+
                 loadingBuilder: (context, child, progress) {
                   if (progress == null) return child;
                   return Container(
