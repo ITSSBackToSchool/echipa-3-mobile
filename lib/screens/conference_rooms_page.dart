@@ -1,8 +1,45 @@
+import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
 import 'package:seat_booking_mobile/utils/app_colors.dart';
 import 'package:seat_booking_mobile/widgets/custom_app_bar.dart';
 import 'package:seat_booking_mobile/widgets/custom_drawer.dart';
 import 'package:table_calendar/table_calendar.dart';
+
+// Models
+class Room {
+  final int roomId;
+  final int seatCount;
+  final String name;
+
+  Room({required this.roomId, required this.seatCount, required this.name});
+
+  factory Room.fromJson(Map<String, dynamic> json) {
+    return Room(
+      roomId: json['roomId'] ?? 0,
+      seatCount: json['seatCount'] ?? 0,
+      name: json['name'] ?? 'Unnamed Room',
+    );
+  }
+}
+
+class TimeSlot {
+  final String start;
+  final String end;
+  final bool available;
+
+  TimeSlot({required this.start, required this.end, required this.available});
+
+  factory TimeSlot.fromJson(Map<String, dynamic> json) {
+    return TimeSlot(
+      start: json['start'] ?? '00:00:00',
+      end: json['end'] ?? '00:00:00',
+      available: json['available'] ?? false,
+    );
+  }
+}
 
 class ConferenceRoomsPage extends StatefulWidget {
   const ConferenceRoomsPage({super.key});
@@ -13,46 +50,153 @@ class ConferenceRoomsPage extends StatefulWidget {
 
 class _ConferenceRoomsPageState extends State<ConferenceRoomsPage>
     with SingleTickerProviderStateMixin {
-  int _selectedBuilding = 0;
-  int? _selectedRoomIndex;
-  int? _selectedTimeSlot;
+  int _selectedBuilding = 0; // 0 for T1, 1 for T2
+  int? _selectedRoomId;
   late TabController _tabController;
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
-  List<int> _selectedTimeSlots = [];
+  Timer? _debounce;
+
+  // Room State
+  List<Room> _rooms = [];
+  bool _isLoadingRooms = true;
+  String? _roomsErrorMessage;
+
+  // TimeSlot State
+  List<TimeSlot> _timeSlots = [];
+  bool _isLoadingTimeSlots = false;
+  String? _timeSlotsErrorMessage;
+  List<int> _selectedTimeSlotIndices = [];
 
   final List<String> _floors = ['Parter', 'Etaj 1', 'Etaj 2'];
-  final List<String> _timeSlots = ['9AM - 10AM', '10AM - 11AM', '11AM - 12PM', '12PM - 1PM'];
+  final List<String> _buildings = ['T1', 'T2'];
 
   @override
   void initState() {
     super.initState();
     _selectedDay = _focusedDay;
     _tabController = TabController(length: 3, vsync: this);
+    _fetchRooms(); // Initial fetch
+
+    _tabController.addListener(() {
+      setState(() {
+        _selectedRoomId = null;
+        _timeSlots.clear();
+        _selectedTimeSlotIndices.clear();
+        _timeSlotsErrorMessage = null;
+      });
+      _debouncedFetchRooms();
+    });
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _debounce?.cancel();
     super.dispose();
   }
 
-  void _onTimeSlotSelected(int index) {
+  void _debouncedFetchRooms() {
+    if (_debounce?.isActive ?? false) _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      _fetchRooms();
+    });
+  }
+
+  Future<void> _fetchRooms() async {
+    if (!mounted) return;
     setState(() {
-      if (_selectedTimeSlots.contains(index)) {
-        // Deselect if already selected
-        _selectedTimeSlots.remove(index);
+      _isLoadingRooms = true;
+      _roomsErrorMessage = null;
+    });
+
+    final floorName = _floors[_tabController.index];
+    final buildingName = _buildings[_selectedBuilding];
+    final url = Uri.parse(
+        'http://10.0.2.2:8080/rooms/roomByFloorAndBuilding?floorName=$floorName&buildingName=$buildingName');
+
+    try {
+      final apiCall = http.get(url);
+      final delay = Future.delayed(const Duration(milliseconds: 500));
+      final responses = await Future.wait([apiCall, delay]);
+      final response = responses[0] as http.Response;
+
+      if (mounted) {
+        if (response.statusCode == 200) {
+          final List<dynamic> data = json.decode(response.body);
+          setState(() {
+            _rooms = data.map((json) => Room.fromJson(json)).toList();
+            _isLoadingRooms = false;
+          });
+        } else {
+          throw Exception('Server error: ${response.statusCode}');
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _roomsErrorMessage = e.toString();
+          _isLoadingRooms = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _fetchTimeSlots(int roomId) async {
+    if (!mounted) return;
+    setState(() {
+      _isLoadingTimeSlots = true;
+      _timeSlotsErrorMessage = null;
+      _timeSlots.clear();
+      _selectedTimeSlotIndices.clear();
+    });
+
+    final date = DateFormat('yyyy-MM-dd').format(_selectedDay!);
+    final url = Uri.parse(
+        'http://10.0.2.2:8080/rooms/timeslots?roomId=$roomId&dateStart=${date}T00:00&dateEnd=${date}T23:00');
+
+    try {
+      final response = await http.get(url);
+      if (mounted) {
+        if (response.statusCode == 200) {
+          final List<dynamic> data = json.decode(response.body);
+          setState(() {
+            _timeSlots = data
+                .map((json) => TimeSlot.fromJson(json))
+                .where((slot) => slot.available)
+                .toList();
+            _isLoadingTimeSlots = false;
+          });
+        } else {
+          throw Exception('Server error: ${response.statusCode}');
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _timeSlotsErrorMessage = e.toString();
+          _isLoadingTimeSlots = false;
+        });
+      }
+    }
+  }
+
+
+  void _onTimeSlotSelected(int index) {
+    // Note: The list is already filtered, so no need to check for occupied status here
+    setState(() {
+      if (_selectedTimeSlotIndices.contains(index)) {
+        _selectedTimeSlotIndices.remove(index);
       } else {
-        // Check for contiguity
-        if (_selectedTimeSlots.isNotEmpty) {
-          final last = _selectedTimeSlots.last;
-          final first = _selectedTimeSlots.first;
+        if (_selectedTimeSlotIndices.isNotEmpty) {
+          final last = _selectedTimeSlotIndices.last;
+          final first = _selectedTimeSlotIndices.first;
           if (index != last + 1 && index != first - 1) {
-            _selectedTimeSlots.clear(); // Not contiguous, reset
+            _selectedTimeSlotIndices.clear();
           }
         }
-        _selectedTimeSlots.add(index);
-        _selectedTimeSlots.sort(); // Keep the list sorted
+        _selectedTimeSlotIndices.add(index);
+        _selectedTimeSlotIndices.sort();
       }
     });
   }
@@ -78,13 +222,8 @@ class _ConferenceRoomsPageState extends State<ConferenceRoomsPage>
               ),
             ),
             Container(
-              color: AppColors.albastruInchis,
-              child: IndexedStack(
-                index: _tabController.index,
-                children: _floors
-                    .map((_) => _buildRoomsList())
-                    .toList(),
-              ),
+              color: AppColors.gri,
+              child: _buildRoomsListContainer(),
             ),
             Container(
               color: AppColors.albastruInchis,
@@ -126,7 +265,12 @@ class _ConferenceRoomsPageState extends State<ConferenceRoomsPage>
   Widget _buildFilterButton(int index, String text) {
     final isSelected = _selectedBuilding == index;
     return ElevatedButton(
-      onPressed: () => setState(() => _selectedBuilding = index),
+      onPressed: () {
+        setState(() {
+          _selectedBuilding = index;
+        });
+        _debouncedFetchRooms();
+      },
       style: ElevatedButton.styleFrom(
         backgroundColor: isSelected ? AppColors.gri : AppColors.albastruInchis,
         side: isSelected ? null : const BorderSide(color: AppColors.gri),
@@ -139,39 +283,74 @@ class _ConferenceRoomsPageState extends State<ConferenceRoomsPage>
     );
   }
 
+  Widget _buildRoomsListContainer() {
+    if (_isLoadingRooms) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 48.0),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    } else if (_roomsErrorMessage != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text('An error occurred: $_roomsErrorMessage', textAlign: TextAlign.center, style: const TextStyle(color: AppColors.rosu)),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: _fetchRooms,
+                style: ElevatedButton.styleFrom(backgroundColor: AppColors.albastruInchis),
+                child: const Text('Retry', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          ),
+        ),
+      );
+    } else if (_rooms.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(32.0),
+          child: Text('No rooms available for this selection.'),
+        ),
+      );
+    } else {
+      return _buildRoomsList();
+    }
+  }
+
   Widget _buildRoomsList() {
     return ListView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      itemCount: 3, // Example number of rooms
+      itemCount: _rooms.length,
       itemBuilder: (context, index) {
-        return _buildRoomCard(index);
+        return _buildRoomCard(_rooms[index]);
       },
     );
   }
 
-  Widget _buildRoomCard(int index) {
-    final isSelected = _selectedRoomIndex == index;
-
+  Widget _buildRoomCard(Room room) {
+    final isSelected = _selectedRoomId == room.roomId;
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       color: AppColors.gri,
       elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             ClipRRect(
-              borderRadius: BorderRadius.circular(8.0),
+              borderRadius: BorderRadius.circular(12.0),
               child: Image.network(
-
-                'https://images.pexels.com/photos/3201921/pexels-photo-3201921.jpeg',
+                'https://via.placeholder.com/80', // Placeholder for room.imageUrl
                 width: 80,
                 height: 80,
                 fit: BoxFit.cover,
-
                 loadingBuilder: (context, child, progress) {
                   if (progress == null) return child;
                   return Container(
@@ -186,8 +365,7 @@ class _ConferenceRoomsPageState extends State<ConferenceRoomsPage>
                     width: 80,
                     height: 80,
                     color: Colors.grey[200],
-                    child: Icon(Icons.image_not_supported_outlined,
-                        color: Colors.grey[400], size: 30),
+                    child: Icon(Icons.image_not_supported_outlined, color: Colors.grey[400], size: 30),
                   );
                 },
               ),
@@ -196,18 +374,18 @@ class _ConferenceRoomsPageState extends State<ConferenceRoomsPage>
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
+                children: [
                   Text(
-                    'Lounge',
-                    style: TextStyle(
+                    room.name,
+                    style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
                         color: AppColors.albastruInchis),
                   ),
-                  SizedBox(height: 4),
+                  const SizedBox(height: 4),
                   Text(
-                    '23 locuri',
-                    style: TextStyle(color: AppColors.albastruInchis),
+                    '${room.seatCount} seats',
+                    style: const TextStyle(color: AppColors.albastruInchis),
                   ),
                 ],
               ),
@@ -215,16 +393,19 @@ class _ConferenceRoomsPageState extends State<ConferenceRoomsPage>
             GestureDetector(
               onTap: () {
                 setState(() {
-                  _selectedRoomIndex =
-                  _selectedRoomIndex == index ? null : index;
+                  if (_selectedRoomId == room.roomId) {
+                     _selectedRoomId = null;
+                     _timeSlots.clear();
+                  } else {
+                    _selectedRoomId = room.roomId;
+                    _fetchTimeSlots(room.roomId);
+                  }
                 });
               },
               child: CircleAvatar(
                 radius: 20,
-                backgroundColor:
-                isSelected ? AppColors.accent : AppColors.albastruInchis,
-                child: Icon(isSelected ? Icons.check : Icons.add,
-                    color: AppColors.gri, size: 24),
+                backgroundColor: isSelected ? AppColors.accent : AppColors.albastruInchis,
+                child: Icon(isSelected ? Icons.check : Icons.add, color: AppColors.gri, size: 24),
               ),
             ),
           ],
@@ -232,8 +413,6 @@ class _ConferenceRoomsPageState extends State<ConferenceRoomsPage>
       ),
     );
   }
-
-
 
   Widget _buildCalendar() {
     return Container(
@@ -248,10 +427,15 @@ class _ConferenceRoomsPageState extends State<ConferenceRoomsPage>
         focusedDay: _focusedDay,
         selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
         onDaySelected: (selectedDay, focusedDay) {
-          setState(() {
-            _selectedDay = selectedDay;
-            _focusedDay = focusedDay;
-          });
+          if (!isSameDay(_selectedDay, selectedDay)) {
+             setState(() {
+                _selectedDay = selectedDay;
+                _focusedDay = focusedDay;
+             });
+             if (_selectedRoomId != null) {
+                _fetchTimeSlots(_selectedRoomId!);
+             }
+          }
         },
          headerStyle: const HeaderStyle(
           formatButtonVisible: false,
@@ -284,21 +468,53 @@ class _ConferenceRoomsPageState extends State<ConferenceRoomsPage>
   }
 
   Widget _buildTimeSlots() {
+    if (_selectedRoomId == null) {
+      return const Center(
+          child: Padding(
+              padding: EdgeInsets.all(32.0),
+              child: Text('Please select a room to see time slots.',
+                  style: TextStyle(color: AppColors.gri))));
+    }
+    if (_isLoadingTimeSlots) {
+      return const Center(child: Padding(padding: EdgeInsets.symmetric(vertical: 24.0), child: CircularProgressIndicator()));
+    }
+    if (_timeSlotsErrorMessage != null) {
+      return Center(
+          child: Column(children: [
+        Text('Error: $_timeSlotsErrorMessage', style: const TextStyle(color: AppColors.rosu)),
+        const SizedBox(height: 10),
+        ElevatedButton(onPressed: () => _fetchTimeSlots(_selectedRoomId!), child: const Text('Retry'))
+      ]));
+    }
+    if (_timeSlots.isEmpty) {
+      return const Center(
+          child: Padding(
+              padding: EdgeInsets.all(32.0),
+              child: Text('No time slots available.', style: TextStyle(color: AppColors.gri))));
+    }
+
     return Column(
       children: List.generate(_timeSlots.length, (index) {
-        final isSelected = _selectedTimeSlots.contains(index);
+        final timeSlot = _timeSlots[index];
+        final isSelected = _selectedTimeSlotIndices.contains(index);
+
+        String startTime = DateFormat.jm().format(DateFormat("yyyy-MM-dd'T'HH:mm:ss").parse(timeSlot.start));
+        String endTime = DateFormat.jm().format(DateFormat("yyyy-MM-dd'T'HH:mm:ss").parse(timeSlot.end));
+
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 4.0),
           child: ElevatedButton(
             onPressed: () => _onTimeSlotSelected(index),
             style: ElevatedButton.styleFrom(
-              backgroundColor: isSelected ? AppColors.accent : AppColors.verde,
+              backgroundColor: isSelected
+                  ? AppColors.accent
+                  : AppColors.verde,
               minimumSize: const Size(double.infinity, 50),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(25),
               ),
             ),
-            child: Text(_timeSlots[index], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            child: Text('$startTime - $endTime', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ),
         );
       }),
@@ -313,8 +529,9 @@ class _ConferenceRoomsPageState extends State<ConferenceRoomsPage>
           child: OutlinedButton(
             onPressed: () {
               setState(() {
-                _selectedRoomIndex = null;
-                _selectedTimeSlots.clear();
+                _selectedRoomId = null;
+                _selectedTimeSlotIndices.clear();
+                _timeSlots.clear();
               });
             },
             style: OutlinedButton.styleFrom(
@@ -334,7 +551,7 @@ class _ConferenceRoomsPageState extends State<ConferenceRoomsPage>
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(
-            onPressed: _selectedRoomIndex == null || _selectedTimeSlots.isEmpty
+            onPressed: _selectedRoomId == null || _selectedTimeSlotIndices.isEmpty
                 ? null
                 : () {
                     // Handle confirmation
