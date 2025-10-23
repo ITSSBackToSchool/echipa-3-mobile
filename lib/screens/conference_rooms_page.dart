@@ -156,7 +156,11 @@ class _ConferenceRoomsPageState extends State<ConferenceRoomsPage>
         'http://10.0.2.2:8080/rooms/timeslots?roomId=$roomId&dateStart=${date}T00:00&dateEnd=${date}T23:00');
 
     try {
-      final response = await http.get(url);
+      final apiCall = http.get(url);
+      final delay = Future.delayed(const Duration(milliseconds: 500));
+      final responses = await Future.wait([apiCall, delay]);
+      final response = responses[0] as http.Response;
+
       if (mounted) {
         if (response.statusCode == 200) {
           final List<dynamic> data = json.decode(response.body);
@@ -222,7 +226,7 @@ class _ConferenceRoomsPageState extends State<ConferenceRoomsPage>
               ),
             ),
             Container(
-              color: AppColors.albastruInchis,
+              color: AppColors.gri,
               child: _buildRoomsListContainer(),
             ),
             Container(
@@ -347,7 +351,7 @@ class _ConferenceRoomsPageState extends State<ConferenceRoomsPage>
             ClipRRect(
               borderRadius: BorderRadius.circular(12.0),
               child: Image.network(
-                'https://images.pexels.com/photos/3201921/pexels-photo-3201921.jpeg', // Placeholder for room.imageUrl
+                'https://via.placeholder.com/80', // Placeholder for room.imageUrl
                 width: 80,
                 height: 80,
                 fit: BoxFit.cover,
@@ -476,7 +480,12 @@ class _ConferenceRoomsPageState extends State<ConferenceRoomsPage>
                   style: TextStyle(color: AppColors.gri))));
     }
     if (_isLoadingTimeSlots) {
-      return const Center(child: Padding(padding: EdgeInsets.symmetric(vertical: 24.0), child: CircularProgressIndicator()));
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 48.0),
+          child: CircularProgressIndicator(),
+        ),
+      );
     }
     if (_timeSlotsErrorMessage != null) {
       return Center(
@@ -497,7 +506,7 @@ class _ConferenceRoomsPageState extends State<ConferenceRoomsPage>
       children: List.generate(_timeSlots.length, (index) {
         final timeSlot = _timeSlots[index];
         final isSelected = _selectedTimeSlotIndices.contains(index);
-
+        
         String startTime = DateFormat.jm().format(DateFormat("yyyy-MM-dd'T'HH:mm:ss").parse(timeSlot.start));
         String endTime = DateFormat.jm().format(DateFormat("yyyy-MM-dd'T'HH:mm:ss").parse(timeSlot.end));
 
