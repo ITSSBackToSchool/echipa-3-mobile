@@ -39,6 +39,7 @@ class _OfficeSeatsPageState extends State<OfficeSeatsPage>
   late TabController _tabController;
   final List<String> _floors = ['Parter', 'Etaj 1', 'Etaj 2'];
   late Future<List<Seat>> _seatsFuture;
+  bool _isConfirming = false;
 
   @override
   void initState() {
@@ -83,6 +84,52 @@ class _OfficeSeatsPageState extends State<OfficeSeatsPage>
       throw Exception('Failed to connect to the server');
     }
   }
+
+  Future<void> _confirmReservation() async {
+    if (_selectedSeatId == null) return;
+
+    setState(() {
+      _isConfirming = true;
+    });
+
+    final url = Uri.parse('http://10.0.2.2:8080/reservations/seats');
+    final date = DateFormat('yyyy-MM-dd').format(_selectedDay!);
+    final body = {
+      'userId': 1, // Hardcoded userId
+      'seatIds': [_selectedSeatId],
+      'reservationDateStart': '${date}T00:00:00',
+      'reservationDateEnd': '${date}T23:59:00',
+    };
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(body),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(backgroundColor: AppColors.verde, content: Text('Reservation confirmed successfully!')),
+        );
+        setState(() {
+          _selectedSeatId = null; // Deselect seat
+          _seatsFuture = _fetchSeats(); // Refresh seats
+        });
+      } else {
+        throw Exception('Failed to confirm reservation: ${response.body}');
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(backgroundColor: AppColors.rosu, content: Text('Error: ${e.toString()}')),
+      );
+    } finally {
+      setState(() {
+        _isConfirming = false;
+      });
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -390,11 +437,9 @@ class _OfficeSeatsPageState extends State<OfficeSeatsPage>
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(
-            onPressed: _selectedSeatId == null
+            onPressed: _selectedSeatId == null || _isConfirming
                 ? null
-                : () {
-                    // Handle confirmation
-                  },
+                : _confirmReservation,
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 14.0),
               backgroundColor: AppColors.gri,
@@ -402,11 +447,13 @@ class _OfficeSeatsPageState extends State<OfficeSeatsPage>
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12)),
             ),
-            child: const Text('Confirm',
-                style: TextStyle(
-                    color: AppColors.albastruInchis,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold)),
+            child: _isConfirming
+                ? const CircularProgressIndicator(color: AppColors.albastruInchis)
+                : const Text('Confirm',
+                    style: TextStyle(
+                        color: AppColors.albastruInchis,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold)),
           ),
         ),
       ],
