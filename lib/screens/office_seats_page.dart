@@ -11,26 +11,41 @@ class OfficeSeatsPage extends StatefulWidget {
   State<OfficeSeatsPage> createState() => _OfficeSeatsPageState();
 }
 
-class _OfficeSeatsPageState extends State<OfficeSeatsPage> {
+class _OfficeSeatsPageState extends State<OfficeSeatsPage>
+    with SingleTickerProviderStateMixin {
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
   int? _selectedSeatIndex;
+  late TabController _tabController;
+  final List<String> _floors = ['Parter', 'Etaj 1', 'Etaj 2'];
 
   @override
   void initState() {
     super.initState();
     _selectedDay = _focusedDay;
+    _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(() {
+      setState(() {
+        // Reset selection when changing floor
+        _selectedSeatIndex = null;
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 3,
-      child: Scaffold(
-        backgroundColor: AppColors.gri,
-        appBar: const CustomAppBar(title: 'Office Seats'),
-        drawer: const CustomDrawer(),
-        body: Column(
+    return Scaffold(
+      backgroundColor: AppColors.albastruInchis,
+      appBar: const CustomAppBar(title: 'Office Seats'),
+      drawer: const CustomDrawer(),
+      body: SingleChildScrollView(
+        child: Column(
           children: [
             Container(
               color: AppColors.albastruInchis,
@@ -61,17 +76,22 @@ class _OfficeSeatsPageState extends State<OfficeSeatsPage> {
                     headerStyle: const HeaderStyle(
                       formatButtonVisible: false,
                       titleCentered: true,
-                      titleTextStyle: TextStyle(color: AppColors.albastruInchis, fontSize: 18.0),
-                      leftChevronIcon: Icon(Icons.chevron_left, color: AppColors.albastruInchis),
-                      rightChevronIcon: Icon(Icons.chevron_right, color: AppColors.albastruInchis),
+                      titleTextStyle: TextStyle(
+                          color: AppColors.albastruInchis, fontSize: 18.0),
+                      leftChevronIcon: Icon(Icons.chevron_left,
+                          color: AppColors.albastruInchis),
+                      rightChevronIcon: Icon(Icons.chevron_right,
+                          color: AppColors.albastruInchis),
                     ),
                     daysOfWeekStyle: const DaysOfWeekStyle(
                       weekdayStyle: TextStyle(color: AppColors.albastruInchis),
                       weekendStyle: TextStyle(color: AppColors.albastruInchis),
                     ),
                     calendarStyle: CalendarStyle(
-                      defaultTextStyle: const TextStyle(color: AppColors.albastruInchis),
-                      weekendTextStyle: const TextStyle(color: AppColors.albastruInchis),
+                      defaultTextStyle:
+                          const TextStyle(color: AppColors.albastruInchis),
+                      weekendTextStyle:
+                          const TextStyle(color: AppColors.albastruInchis),
                       outsideDaysVisible: false,
                       todayDecoration: BoxDecoration(
                         color: AppColors.appBarGradientEnd,
@@ -90,51 +110,220 @@ class _OfficeSeatsPageState extends State<OfficeSeatsPage> {
             ),
             Container(
               color: AppColors.gri,
-              child: const TabBar(
+              child: TabBar(
+                controller: _tabController,
                 indicatorColor: AppColors.accent,
                 labelColor: AppColors.albastruInchis,
-                unselectedLabelColor: AppColors.albastruInchis,
-                tabs: [
+                unselectedLabelColor: AppColors.albastruInchis.withOpacity(0.6),
+                tabs: const [
                   Tab(text: 'Parter'),
                   Tab(text: 'Etaj 1'),
                   Tab(text: 'Etaj 2'),
                 ],
               ),
             ),
-            Expanded(
-              child: Container(
-                color: AppColors.gri,
-                child: TabBarView(
-                  children: [
-                    _buildSeatGrid(),
-                    _buildSeatGrid(),
-                    _buildSeatGrid(),
-                  ],
-                ),
+            Container(
+              color: AppColors.gri,
+              height: 400, // Give TabBarView a fixed height to prevent layout errors
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _buildSeatGrid(),
+                  _buildSeatGrid(),
+                  _buildSeatGrid(),
+                ],
               ),
             ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              color: AppColors.albastruInchis,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildLegend(),
+                  const SizedBox(height: 20),
+                  _buildSelectedSeatInfo(),
+                  const SizedBox(height: 20),
+                  _buildActionButtons(),
+                ],
+              ),
+            )
           ],
         ),
       ),
     );
   }
 
+  Widget _buildLegend() {
+    return Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.gri,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "Tables on the scheme:",
+              style: TextStyle(
+                  color: AppColors.albastruInchis.withOpacity(0.8),
+                  fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildLegendItem(AppColors.verde, "Available"),
+                _buildLegendItem(AppColors.portocaliu, "Selected"),
+                _buildLegendItem(AppColors.rosu, "Unavailable"),
+              ],
+            ),
+          ],
+        ));
+  }
+
+  Widget _buildLegendItem(Color? color, String text) {
+    return Row(
+      children: [
+        Container(
+          width: 16,
+          height: 16,
+          decoration: BoxDecoration(
+              color: color, borderRadius: BorderRadius.circular(4)),
+        ),
+        const SizedBox(width: 8),
+        Text(text, style: const TextStyle(color: AppColors.albastruInchis)),
+      ],
+    );
+  }
+
+  Widget _buildSelectedSeatInfo() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "Selected seat:",
+          style: TextStyle(
+              color: AppColors.gri, fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          height: 60,
+          decoration: BoxDecoration(
+            color: AppColors.gri,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Center(
+                  child: Text(
+                    _selectedSeatIndex != null
+                        ? "Floor: ${_floors[_tabController.index]}"
+                        : "Floor: -",
+                    style: const TextStyle(
+                        color: AppColors.albastruInchis,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+              const VerticalDivider(
+                color: AppColors.albastruInchis,
+                thickness: 1,
+                width: 1,
+                indent: 10,
+                endIndent: 10,
+              ),
+              Expanded(
+                child: Center(
+                  child: Text(
+                    _selectedSeatIndex != null
+                        ? "Seat: ${_selectedSeatIndex! + 1}"
+                        : "Seat: -",
+                    style: const TextStyle(
+                        color: AppColors.albastruInchis,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionButtons() {
+    return Column(
+      children: [
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton(
+            onPressed: () {
+              setState(() {
+                _selectedSeatIndex = null;
+              });
+            },
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 14.0),
+              side: const BorderSide(color: AppColors.gri),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Reset',
+                style: TextStyle(
+                    color: AppColors.gri,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold)),
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: _selectedSeatIndex == null
+                ? null
+                : () {
+                    // Handle confirmation
+                  },
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 14.0),
+              backgroundColor: AppColors.gri,
+              disabledBackgroundColor: Colors.grey.withOpacity(0.5),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Confirm',
+                style: TextStyle(
+                    color: AppColors.albastruInchis,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold)),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildSeatGrid() {
     return GridView.builder(
+      physics: const NeverScrollableScrollPhysics(), // Prevents internal scrolling
       padding: const EdgeInsets.all(24.0),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 4,
         crossAxisSpacing: 24.0,
         mainAxisSpacing: 24.0,
       ),
-      itemCount: 16,
+      itemCount: 17, // Updated seat count
       itemBuilder: (context, index) {
         final bool isAvailable = ![2, 5, 8, 9, 13, 14].contains(index);
         final bool isSelected = _selectedSeatIndex == index;
 
         Color seatColor;
         if (isSelected) {
-          seatColor = AppColors.accent;
+          seatColor = AppColors.portocaliu;
         } else if (isAvailable) {
           seatColor = AppColors.verde;
         } else {
