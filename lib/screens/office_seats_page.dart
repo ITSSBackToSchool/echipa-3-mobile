@@ -160,6 +160,7 @@ class _OfficeSeatsPageState extends State<OfficeSeatsPage>
         SnackBar(
             backgroundColor: AppColors.rosu, content: Text('Error: ${e.toString()}')),
       );
+      _fetchSeats(); // Refetch seats on error
     } finally {
       if (mounted) {
         setState(() {
@@ -277,7 +278,20 @@ class _OfficeSeatsPageState extends State<OfficeSeatsPage>
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(32.0),
-          child: Text('Error: $_errorMessage'),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text('An error occurred: $_errorMessage', textAlign: TextAlign.center, style: const TextStyle(color: AppColors.rosu)),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: _fetchSeats,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.albastruInchis,
+                ),
+                child: const Text('Retry', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          ),
         ),
       );
     } else if (_seats.isEmpty) {
