@@ -121,9 +121,11 @@ class TrafficInfoPage extends StatelessWidget {
         ],
       ),
       child: TextField(
+        style: const TextStyle(color: Color(0xFF4B5563)), // This sets the input text color
         decoration: InputDecoration(
           prefixIcon: Icon(icon, color: const Color(0xFF374151)),
           hintText: label,
+          hintStyle: const TextStyle(color: Color(0xFF4B5563)),
           filled: true,
           fillColor: Colors.transparent, // Set to transparent as the Container provides the color
           enabledBorder: OutlineInputBorder( // Border when enabled
