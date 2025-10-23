@@ -122,13 +122,55 @@ class _MyBookingsPageState extends State<MyBookingsPage> {
     );
   }
 
+  Widget _buildCancelButton() {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          // ignore: avoid_print
+          print("Cancel tapped!");
+        },
+        borderRadius: BorderRadius.circular(25),
+        child: Ink(
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(colors: [
+              AppColors.appBarGradientStart,
+              AppColors.appBarGradientEnd,
+            ]),
+            borderRadius: BorderRadius.circular(25),
+          ),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 48),
+            child: const Text(
+              'Cancel',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildSeatBookingCard(Map<String, dynamic> booking) {
-    return Card(
+    return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      color: AppColors.albastruDeschis,
-      elevation: 8,
-      shadowColor: Colors.black.withOpacity(0.3),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      decoration: BoxDecoration(
+        color: AppColors.albastruDeschis,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.15),
+            spreadRadius: 2,
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
         child: Column(
@@ -165,21 +207,7 @@ class _MyBookingsPageState extends State<MyBookingsPage> {
             ),
             if (booking['status'] == 'Active') ...[
               const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: () { /* Handle cancel */ },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.albastruInchis,
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 18, horizontal: 48),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30)),
-                ),
-                child: const Text('Cancel',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold)),
-              ),
+              _buildCancelButton(),
             ],
           ],
         ),
@@ -188,12 +216,20 @@ class _MyBookingsPageState extends State<MyBookingsPage> {
   }
 
   Widget _buildRoomBookingCard(Map<String, dynamic> booking) {
-    return Card(
+    return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      color: AppColors.albastruDeschis,
-      elevation: 8,
-      shadowColor: Colors.black.withOpacity(0.3),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      decoration: BoxDecoration(
+        color: AppColors.albastruDeschis,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.15),
+            spreadRadius: 2,
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
         child: Column(
@@ -225,8 +261,8 @@ class _MyBookingsPageState extends State<MyBookingsPage> {
                   borderRadius: BorderRadius.circular(50.0),
                   child: Image.network(
                     booking['image'],
-                    width: 64,
-                    height: 64,
+                    width: 100,
+                    height: 100,
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) =>
                         const CircleAvatar(
@@ -241,21 +277,7 @@ class _MyBookingsPageState extends State<MyBookingsPage> {
             ),
             if (booking['status'] == 'Active') ...[
               const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: () { /* Handle cancel */ },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.albastruInchis,
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 18, horizontal: 48),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30)),
-                ),
-                child: const Text('Cancel',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold)),
-              ),
+              _buildCancelButton(),
             ],
           ],
         ),
