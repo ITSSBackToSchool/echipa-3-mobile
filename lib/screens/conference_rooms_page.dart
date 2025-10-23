@@ -166,11 +166,12 @@ class _ConferenceRoomsPageState extends State<ConferenceRoomsPage>
             ClipRRect(
               borderRadius: BorderRadius.circular(8.0),
               child: Image.network(
-                // Imagine mai clară
+
                 'https://images.pexels.com/photos/3201921/pexels-photo-3201921.jpeg',
                 width: 80,
                 height: 80,
-                fit: BoxFit.cover, // nu mai taie
+                fit: BoxFit.cover,
+
                 loadingBuilder: (context, child, progress) {
                   if (progress == null) return child;
                   return Container(
