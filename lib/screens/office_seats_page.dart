@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -38,54 +39,85 @@ class _OfficeSeatsPageState extends State<OfficeSeatsPage>
   int? _selectedSeatId;
   late TabController _tabController;
   final List<String> _floors = ['Parter', 'Etaj 1', 'Etaj 2'];
-  late Future<List<Seat>> _seatsFuture;
   bool _isConfirming = false;
+  Timer? _debounce;
+
+  // State management for seats
+  List<Seat> _seats = [];
+  bool _isLoading = true;
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
     _selectedDay = _focusedDay;
     _tabController = TabController(length: 3, vsync: this);
-    _seatsFuture = _fetchSeats();
+    _fetchSeats(); // Initial fetch
 
     _tabController.addListener(() {
       setState(() {
         _selectedSeatId = null;
-        _seatsFuture = _fetchSeats();
       });
+      _debouncedFetch();
     });
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _debounce?.cancel();
     super.dispose();
   }
 
-  Future<List<Seat>> _fetchSeats() async {
+  void _debouncedFetch() {
+    if (_debounce?.isActive ?? false) _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), () { // Reduced debounce time
+      _fetchSeats();
+    });
+  }
+
+  Future<void> _fetchSeats() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
     final floorId = _tabController.index + 1;
     final date = DateFormat('yyyy-MM-dd').format(_selectedDay!);
-    // IMPORTANT: Use 10.0.2.2 for the Android emulator to connect to localhost
     final url = Uri.parse(
         'http://10.0.2.2:8080/seats/freeSeats?floorId=$floorId&dateStart=${date}T00:00&dateEnd=${date}T23:59');
 
     try {
-      final response = await http.get(url);
+      // Perform API call and a minimum delay in parallel
+      final apiCall = http.get(url);
+      final delay = Future.delayed(const Duration(milliseconds: 500));
 
-      if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
-        return data.map((json) => Seat.fromJson(json)).toList();
-      } else {
-        throw Exception('Failed to load seats');
+      final responses = await Future.wait([apiCall, delay]);
+      final response = responses[0] as http.Response;
+
+      if (mounted) {
+        if (response.statusCode == 200) {
+          final List<dynamic> data = json.decode(response.body);
+          setState(() {
+            _seats = data.map((json) => Seat.fromJson(json)).toList();
+            _isLoading = false;
+          });
+        } else {
+          throw Exception('Server error: ${response.statusCode}');
+        }
       }
     } catch (e) {
-      // ignore: avoid_print
-      print(e); // For debugging purposes
-      throw Exception('Failed to connect to the server');
+      if (mounted) {
+        setState(() {
+          _errorMessage = e.toString();
+          _isLoading = false;
+        });
+      }
     }
   }
 
-  Future<void> _confirmReservation() async {
+    Future<void> _confirmReservation() async {
     if (_selectedSeatId == null) return;
 
     setState(() {
@@ -109,24 +141,31 @@ class _OfficeSeatsPageState extends State<OfficeSeatsPage>
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(backgroundColor: AppColors.verde, content: Text('Reservation confirmed successfully!')),
+          const SnackBar(
+              backgroundColor: AppColors.verde,
+              content: Text('Reservation confirmed successfully!')),
         );
         setState(() {
-          _selectedSeatId = null; // Deselect seat
-          _seatsFuture = _fetchSeats(); // Refresh seats
+          _selectedSeatId = null;
         });
+        _fetchSeats(); // Refresh seats after confirmation
       } else {
-        throw Exception('Failed to confirm reservation: ${response.body}');
+        throw Exception('Failed to confirm: ${response.body}');
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(backgroundColor: AppColors.rosu, content: Text('Error: ${e.toString()}')),
+        SnackBar(
+            backgroundColor: AppColors.rosu, content: Text('Error: ${e.toString()}')),
       );
     } finally {
-      setState(() {
-        _isConfirming = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isConfirming = false;
+        });
+      }
     }
   }
 
@@ -153,10 +192,7 @@ class _OfficeSeatsPageState extends State<OfficeSeatsPage>
             ),
             Container(
               color: AppColors.gri,
-              child: IndexedStack(
-                index: _tabController.index,
-                children: _floors.map((_) => _buildSeatGridContainer()).toList(),
-              ),
+              child: _buildSeatGridContainer(),
             ),
             _buildBottomSection(),
           ],
@@ -186,8 +222,9 @@ class _OfficeSeatsPageState extends State<OfficeSeatsPage>
                 setState(() {
                   _selectedDay = selectedDay;
                   _focusedDay = focusedDay;
-                  _seatsFuture = _fetchSeats();
+                  _selectedSeatId = null;
                 });
+                _debouncedFetch();
               }
             },
             onPageChanged: (focusedDay) {
@@ -229,20 +266,30 @@ class _OfficeSeatsPageState extends State<OfficeSeatsPage>
   }
 
   Widget _buildSeatGridContainer() {
-    return FutureBuilder<List<Seat>>(
-      future: _seatsFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: Padding(padding: EdgeInsets.all(32.0), child: CircularProgressIndicator()));
-        } else if (snapshot.hasError) {
-          return Center(child: Padding(padding: const EdgeInsets.all(32.0), child: Text('Error: ${snapshot.error}')));
-        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Center(child: Padding(padding: EdgeInsets.all(32.0), child: Text('No seats available.')));
-        } else {
-          return _buildSeatGrid(snapshot.data!);
-        }
-      },
-    );
+    if (_isLoading) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 48.0),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    } else if (_errorMessage != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Text('Error: $_errorMessage'),
+        ),
+      );
+    } else if (_seats.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(32.0),
+          child: Text('No seats available.'),
+        ),
+      );
+    } else {
+      return _buildSeatGrid(_seats);
+    }
   }
 
   Widget _buildSeatGrid(List<Seat> seats) {
@@ -289,7 +336,7 @@ class _OfficeSeatsPageState extends State<OfficeSeatsPage>
       },
     );
   }
-  
+
   Widget _buildBottomSection() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
