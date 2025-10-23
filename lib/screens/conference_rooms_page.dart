@@ -222,7 +222,7 @@ class _ConferenceRoomsPageState extends State<ConferenceRoomsPage>
               child: CircleAvatar(
                 radius: 20,
                 backgroundColor:
-                isSelected ? AppColors.portocaliu : AppColors.albastruInchis,
+                isSelected ? AppColors.accent : AppColors.albastruInchis,
                 child: Icon(isSelected ? Icons.check : Icons.add,
                     color: AppColors.gri, size: 24),
               ),
@@ -292,7 +292,7 @@ class _ConferenceRoomsPageState extends State<ConferenceRoomsPage>
           child: ElevatedButton(
             onPressed: () => _onTimeSlotSelected(index),
             style: ElevatedButton.styleFrom(
-              backgroundColor: isSelected ? AppColors.portocaliu : AppColors.verde,
+              backgroundColor: isSelected ? AppColors.accent : AppColors.verde,
               minimumSize: const Size(double.infinity, 50),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(25),

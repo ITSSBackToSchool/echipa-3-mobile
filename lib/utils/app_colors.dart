@@ -7,7 +7,7 @@ class AppColors {
   static const Color appBarGradientEnd = Color(0xFF4B5563);
   static const Color accent = Color(0xFFF59E0B);
   static const Color albastruDeschis = Color(0xFFE0F2FE);
-
+  static const Color albastruInchisClick = Color(0xFF1F2937);
   // Culori pentru starea scaunelor
   static const Color verde = Color(0xFF22C55E);
   static const Color rosu = Color(0xFFEF4444);
