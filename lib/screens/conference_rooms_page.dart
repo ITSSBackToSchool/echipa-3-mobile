@@ -222,7 +222,7 @@ class _ConferenceRoomsPageState extends State<ConferenceRoomsPage>
               ),
             ),
             Container(
-              color: AppColors.gri,
+              color: AppColors.albastruInchis,
               child: _buildRoomsListContainer(),
             ),
             Container(
@@ -347,7 +347,7 @@ class _ConferenceRoomsPageState extends State<ConferenceRoomsPage>
             ClipRRect(
               borderRadius: BorderRadius.circular(12.0),
               child: Image.network(
-                'https://via.placeholder.com/80', // Placeholder for room.imageUrl
+                'https://images.pexels.com/photos/3201921/pexels-photo-3201921.jpeg', // Placeholder for room.imageUrl
                 width: 80,
                 height: 80,
                 fit: BoxFit.cover,
