@@ -140,7 +140,7 @@ class _MyBookingsPageState extends State<MyBookingsPage> {
             borderRadius: BorderRadius.circular(25),
           ),
           child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 48),
+            padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 64),
             child: const Text(
               'Cancel',
               textAlign: TextAlign.center,
@@ -198,10 +198,19 @@ class _MyBookingsPageState extends State<MyBookingsPage> {
                   ),
                 ),
                 const SizedBox(width: 16),
-                const CircleAvatar(
-                  radius: 32,
-                  backgroundColor: AppColors.albastruInchis,
-                  child: Icon(Icons.event_seat, color: Colors.white, size: 36),
+                Container(
+                  width: 100,
+                  height: 100,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      colors: [
+                        AppColors.appBarGradientStart,
+                        AppColors.appBarGradientEnd,
+                      ],
+                    ),
+                  ),
+                  child: const Icon(Icons.event_seat, color: Colors.white, size: 48),
                 ),
               ],
             ),
@@ -264,12 +273,14 @@ class _MyBookingsPageState extends State<MyBookingsPage> {
                     width: 100,
                     height: 100,
                     fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) =>
-                        const CircleAvatar(
-                      radius: 32,
-                      backgroundColor: AppColors.albastruInchis,
-                      child:
-                          Icon(Icons.image_not_supported, color: Colors.white),
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      width: 100,
+                      height: 100,
+                      decoration: const BoxDecoration(
+                        color: AppColors.albastruInchis,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.image_not_supported, color: Colors.white),
                     ),
                   ),
                 ),
