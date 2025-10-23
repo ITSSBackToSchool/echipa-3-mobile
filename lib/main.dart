@@ -71,32 +71,37 @@ class _MyHomePageState extends State<MyHomePage> {
 
   /// Builds the top welcome section with text and an image.
   Widget _buildWelcomeHeader() {
-    return Column( // Changed from Row to Column
-      crossAxisAlignment: CrossAxisAlignment.center, // Center items horizontally
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center, // Horizontally center the content
       children: [
-        const Text(
-          'Bine ai revenit, User!',
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF374151),
-          ),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          'Azi lucrezi / nu lucrezi de la birou',
-          style: TextStyle(
-            fontSize: 16,
-            color: Color(0xFF4B5563),
-          ),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 24), // Added space between text and image
-        Image.asset( // This widget is not const
-          'assets/images/working_man.png',
-          height: 150, // Slightly larger for better visibility
-          fit: BoxFit.contain,
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.center, // Center items vertically within the column
+          children: [
+            const Text(
+              'Bine ai revenit, User!',
+              style: TextStyle(
+                fontSize: 36,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF374151),
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Azi lucrezi / nu lucrezi de la birou',
+              style: TextStyle(
+                fontSize: 16,
+                color: Color(0xFF4B5563),
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24), // Added space between text and image
+            Image.asset( // This widget is not const
+              'assets/images/working_man.png',
+              height: 200, // Slightly larger for better visibility
+              fit: BoxFit.contain,
+            ),
+          ],
         ),
       ],
     );
@@ -111,9 +116,10 @@ class _MyHomePageState extends State<MyHomePage> {
         borderRadius: BorderRadius.circular(20.0),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Colors.black.withOpacity(0.25), // 25%
+            offset: const Offset(9, 9),            // X=0, Y=4
+            blurRadius: 4,                         // Blur=4
+            spreadRadius: 0,                       // Spread=0
           ),
         ],
       ),

@@ -3,7 +3,6 @@ import 'package:seat_booking_mobile/utils/app_colors.dart';
 
 class CustomDrawer extends StatefulWidget {
   const CustomDrawer({super.key});
-
   @override
   State<CustomDrawer> createState() => _CustomDrawerState();
 }
@@ -24,31 +23,15 @@ class _CustomDrawerState extends State<CustomDrawer> {
                 Navigator.pushNamed(context, '/');
               },
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 60,
-                        height: 60,
-                        decoration: BoxDecoration(
-                          color: AppColors.accent,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      const Text(
-                        'Book\nYour\nSeat',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          height: 1.2,
-                        ),
-                      ),
-                    ],
+                  // Wrap the Image in Flexible to ensure it scales down to fit the available width.
+                  Flexible(
+                    child: Image.asset(
+                      'assets/images/Logo.png',
+                      // Giving a height is still good for consistency,
+                      // but Flexible will handle the width constraint.
+                      height: 150,
+                    ),
                   ),
                 ],
               ),
@@ -79,13 +62,15 @@ class _CustomDrawerState extends State<CustomDrawer> {
                     children: [
                       CircleAvatar(radius: 25, backgroundColor: Colors.grey),
                       SizedBox(width: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Cosmin Gheorghe', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-                          Text('cosmin@example.com', style: TextStyle(color: Colors.black54, fontSize: 12)),
-                          Text('View profile', style: TextStyle(color: Colors.black54, fontSize: 12)),
-                        ],
+                      Expanded( // Prevents overflow with long names/emails
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Cosmin Gheorghe', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
+                            Text('cosmin@example.com', style: TextStyle(color: Colors.black54, fontSize: 12), overflow: TextOverflow.ellipsis),
+                            Text('View profile', style: TextStyle(color: Colors.black54, fontSize: 12)),
+                          ],
+                        ),
                       ),
                     ],
                   ),

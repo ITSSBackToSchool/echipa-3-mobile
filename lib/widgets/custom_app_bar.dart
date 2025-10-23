@@ -61,13 +61,10 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       title: const Text(''),
       actions: [
         Padding(
-          padding: const EdgeInsets.only(right: 16.0, top: 6, bottom: 6),
-          child: Container(
-            width: 120,
-            decoration: BoxDecoration(
-              color: AppColors.accent,
-              borderRadius: BorderRadius.circular(12),
-            ),
+          padding: const EdgeInsets.only(right: 12.0, top: 0, bottom: 0),
+          child: Image.asset(
+            'assets/images/Logo.png',
+            height: 100, // Set the height to make the logo bigger
           ),
         ),
       ],
