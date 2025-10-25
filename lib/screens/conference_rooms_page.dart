@@ -187,7 +187,7 @@ class _ConferenceRoomsPageState extends State<ConferenceRoomsPage>
 
 
   void _onTimeSlotSelected(int index) {
-    // Note: The list is already filtered, so no need to check for occupied status here
+
     setState(() {
       if (_selectedTimeSlotIndices.contains(index)) {
         _selectedTimeSlotIndices.remove(index);
