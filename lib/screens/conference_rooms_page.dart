@@ -68,6 +68,8 @@ class _ConferenceRoomsPageState extends State<ConferenceRoomsPage>
   String? _timeSlotsErrorMessage;
   List<int> _selectedTimeSlotIndices = [];
 
+  bool _isConfirming = false;
+
   final List<String> _floors = ['Parter', 'Etaj 1', 'Etaj 2'];
   final List<String> _buildings = ['T1', 'T2'];
 
@@ -185,9 +187,69 @@ class _ConferenceRoomsPageState extends State<ConferenceRoomsPage>
     }
   }
 
+  Future<void> _confirmReservation() async {
+    if (_selectedRoomId == null || _selectedTimeSlotIndices.isEmpty) return;
+
+    setState(() {
+      _isConfirming = true;
+    });
+
+    final firstSlot = _timeSlots[_selectedTimeSlotIndices.first];
+    final lastSlot = _timeSlots[_selectedTimeSlotIndices.last];
+
+    final url = Uri.parse('http://10.0.2.2:8080/reservations/rooms');
+    final body = {
+      'userId': 1,
+      'roomId': _selectedRoomId,
+      'reservationDateStart': firstSlot.start, // Corrected
+      'reservationDateEnd': lastSlot.end,       // Corrected
+    };
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(body),
+      );
+
+      if (mounted) {
+        if (response.statusCode == 200 || response.statusCode == 201) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                backgroundColor: AppColors.verde,
+                content: Text('Reservation confirmed successfully!')),
+          );
+          setState(() {
+            _selectedRoomId = null;
+            _timeSlots.clear();
+            _selectedTimeSlotIndices.clear();
+          });
+        } else {
+          throw Exception('Failed to confirm: ${response.body}');
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              backgroundColor: AppColors.rosu,
+              content: Text("Room was reserved by someone else.")),
+        );
+        // Refetch on error
+        if(_selectedRoomId != null) _fetchTimeSlots(_selectedRoomId!);
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isConfirming = false;
+        });
+      }
+    }
+  }
+
 
   void _onTimeSlotSelected(int index) {
-
+    // The list is already filtered for available slots.
     setState(() {
       if (_selectedTimeSlotIndices.contains(index)) {
         _selectedTimeSlotIndices.remove(index);
@@ -560,11 +622,9 @@ class _ConferenceRoomsPageState extends State<ConferenceRoomsPage>
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(
-            onPressed: _selectedRoomId == null || _selectedTimeSlotIndices.isEmpty
+            onPressed: _selectedRoomId == null || _selectedTimeSlotIndices.isEmpty || _isConfirming
                 ? null
-                : () {
-                    // Handle confirmation
-                  },
+                : _confirmReservation,
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 14.0),
               backgroundColor: AppColors.gri,
@@ -572,11 +632,13 @@ class _ConferenceRoomsPageState extends State<ConferenceRoomsPage>
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12)),
             ),
-            child: const Text('Confirm',
-                style: TextStyle(
-                    color: AppColors.albastruInchis,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold)),
+            child: _isConfirming 
+                ? const CircularProgressIndicator(color: AppColors.albastruInchis)
+                : const Text('Confirm',
+                  style: TextStyle(
+                      color: AppColors.albastruInchis,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold)),
           ),
         ),
       ],
