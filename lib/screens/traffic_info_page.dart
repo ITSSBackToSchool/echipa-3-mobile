@@ -2,13 +2,27 @@ import 'package:flutter/material.dart';
 import 'package:seat_booking_mobile/widgets/custom_app_bar.dart';
 import 'package:seat_booking_mobile/widgets/custom_drawer.dart';
 
-class TrafficInfoPage extends StatelessWidget {
+import 'package:seat_booking_mobile/utils/location/location_helper.dart';
+import 'package:seat_booking_mobile/utils/services/traffic_api.dart';
+import 'package:seat_booking_mobile/utils/parsers/traffic_parsers.dart';
+
+class TrafficInfoPage extends StatefulWidget {
   const TrafficInfoPage({super.key});
+
+  @override
+  State<TrafficInfoPage> createState() => _TrafficInfoPageState();
+}
+
+class _TrafficInfoPageState extends State<TrafficInfoPage> {
+  String? _durationText; // ex: "21 min"
+  String? _distanceText; // ex: "10.1 km"
+  List<Map<String, dynamic>> _incidents = [];
+  bool _loading = false;
+  String? _error;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Consistent background color with other pages
       backgroundColor: const Color(0xFFF3F4F6),
       appBar: const CustomAppBar(title: 'Traffic Page'),
       drawer: const CustomDrawer(),
@@ -18,49 +32,50 @@ class TrafficInfoPage extends StatelessWidget {
           children: [
             _buildRoutePlanner(context),
             const SizedBox(height: 24),
+            if (_loading) const LinearProgressIndicator(),
+            const SizedBox(height: 8),
+            if (_error != null)
+              Text(_error!, style: const TextStyle(color: Colors.red)),
             _buildTravelStats(),
             const SizedBox(height: 24),
-            _buildTrafficAlert(
-              title: 'Traffic diverted at Unirii Square',
+
+            // Incidents list
+            ..._incidents.map((e) => _buildTrafficAlert(
+              title: e['description']?.toString() ?? 'Traffic incident',
               icon: Icons.warning_amber_rounded,
               iconColor: Colors.orange,
-            ),
-            const SizedBox(height: 16),
-            _buildTrafficAlert(
-              title: 'Traffic diverted at Unirii Square',
-              icon: Icons.alt_route_rounded,
-              iconColor: Colors.orange,
-            ),
+              subtitle: _incidentSubtitle(e),
+            )),
           ],
         ),
       ),
     );
   }
 
-  // A helper function to define the consistent box shadow style
+  String _incidentSubtitle(Map<String, dynamic> e) {
+    final sev = e['severity']?.toString() ?? '';
+    final delay = e['delay'];
+    final road = e['road']?.toString() ?? '';
+    final delayTxt = (delay is num) ? ' • delay ~ ${delay.toInt()}s' : '';
+    final roadTxt = road.isNotEmpty ? ' • $road' : '';
+    return 'Severity: $sev$delayTxt$roadTxt';
+  }
+
   BoxShadow _buildBoxShadow() {
     return BoxShadow(
-      color: Colors.black.withOpacity(0.25), // 25%
-      offset: const Offset(0, 4),            // X=0, Y=4
-      blurRadius: 4,                         // Blur=4
+      color: Colors.black.withOpacity(0.25),
+      offset: const Offset(9, 9),
+      blurRadius: 4,
       spreadRadius: 0,
     );
   }
 
-  /// Builds the main card for planning a route.
   Widget _buildRoutePlanner(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFFE6F0F8),
         borderRadius: BorderRadius.circular(16.0),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.25), // 25%
-            offset: const Offset(9, 9),            // X=0, Y=4
-            blurRadius: 4,                         // Blur=4
-            spreadRadius: 0,                       // Spread=0
-          ),
-        ],
+        boxShadow: [_buildBoxShadow()],
       ),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -75,18 +90,21 @@ class TrafficInfoPage extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            _buildTextField(icon: Icons.location_on, label: 'My Location'),
+
+            // câmpurile rămân decorative pentru moment
+            _buildTextField(icon: Icons.location_on, label: 'My Location (auto)'),
             const SizedBox(height: 12),
             _buildTextField(icon: Icons.watch_later, label: 'Current Hour'),
+
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: () {},
+              onPressed: _onSearch,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF374151), // Dark blue-grey
+                backgroundColor: const Color(0xFF374151),
                 foregroundColor: Colors.white,
                 minimumSize: const Size(double.infinity, 50),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(25.0), // Updated radius
+                  borderRadius: BorderRadius.circular(25.0),
                 ),
               ),
               child: const Row(
@@ -104,36 +122,86 @@ class TrafficInfoPage extends StatelessWidget {
     );
   }
 
-  /// Helper for creating styled text fields for the route planner.
+  Future<void> _onSearch() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+      _incidents = [];
+      _durationText = null;
+      _distanceText = null;
+    });
+
+    try {
+      // 1) Locația curentă (lat,lon)
+      //final pos = await LocationHelper.getCurrentPosition();
+      //final start = '${pos.latitude},${pos.longitude}';
+      final start = '44.4325,26.1039';
+      // 2) Directions: traffic=true, travelMode=car
+      final dirJson = await TrafficApi.getDirections(
+        start: start,
+        traffic: true,
+        travelMode: 'car',
+      );
+      final summary = TrafficParsers.parseRouteSummary(dirJson);
+
+      final secs = summary.secs ?? 0;
+      final meters = summary.meters ?? 0;
+      // format
+      _durationText = _formatMinutes(secs);
+      _distanceText = _formatKm(meters);
+
+      // 3) Incidente (backend-ul tău cere startBbox=lat,lon)
+      final incJson = await TrafficApi.getIncidents(startBbox: start);
+      _incidents = TrafficParsers.parseIncidents(incJson);
+    } catch (e) {
+      _error = e.toString();
+    } finally {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  String _formatMinutes(int secs) {
+    final m = (secs / 60).round();
+    return '$m min';
+    // dacă vrei HH:MM, schimbă logica aici.
+  }
+
+  String _formatKm(int meters) {
+    final km = (meters / 1000.0);
+    return '${km.toStringAsFixed(km >= 10 ? 0 : 1)} km';
+  }
+
   Widget _buildTextField({required IconData icon, required String label}) {
-    // This part remains the same, with the shadow on the text field itself
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(25.0), // Updated radius
+        borderRadius: BorderRadius.circular(25.0),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.1),
             spreadRadius: 1,
             blurRadius: 3,
-            offset: const Offset(0, 2), // changes position of shadow
+            offset: const Offset(0, 2),
           ),
         ],
       ),
       child: TextField(
-        style: const TextStyle(color: Color(0xFF4B5563)), // This sets the input text color
+        readOnly: true, // locația e auto; poți permite editare dacă vrei
+        style: const TextStyle(color: Color(0xFF4B5563)),
         decoration: InputDecoration(
           prefixIcon: Icon(icon, color: const Color(0xFF374151)),
           hintText: label,
           hintStyle: const TextStyle(color: Color(0xFF4B5563)),
           filled: true,
-          fillColor: Colors.transparent, // Set to transparent as the Container provides the color
-          enabledBorder: OutlineInputBorder( // Border when enabled
-            borderRadius: BorderRadius.circular(25.0), // Updated radius
+          fillColor: Colors.transparent,
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(25.0),
             borderSide: const BorderSide(color: Colors.black, width: 1.0),
           ),
-          focusedBorder: OutlineInputBorder( // Border when focused
-            borderRadius: BorderRadius.circular(25.0), // Updated radius
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(25.0),
             borderSide: const BorderSide(color: Colors.black, width: 1.0),
           ),
           contentPadding:
@@ -143,7 +211,6 @@ class TrafficInfoPage extends StatelessWidget {
     );
   }
 
-  /// Builds the card showing travel time and distance.
   Widget _buildTravelStats() {
     return Container(
       decoration: BoxDecoration(
@@ -156,15 +223,14 @@ class TrafficInfoPage extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            _buildStatItem(icon: Icons.directions_car, value: '21 min'),
-            _buildStatItem(icon: Icons.bookmark_border, value: '10.1 km'),
+            _buildStatItem(icon: Icons.directions_car, value: _durationText ?? '--'),
+            _buildStatItem(icon: Icons.bookmark_border, value: _distanceText ?? '--'),
           ],
         ),
       ),
     );
   }
 
-  /// Helper for creating an individual stat item (icon and value).
   Widget _buildStatItem({required IconData icon, required String value}) {
     return Column(
       children: [
@@ -182,13 +248,14 @@ class TrafficInfoPage extends StatelessWidget {
     );
   }
 
-  /// Builds a card for displaying a traffic alert.
   Widget _buildTrafficAlert({
     required String title,
     required IconData icon,
     required Color iconColor,
+    String? subtitle,
   }) {
     return Container(
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: const Color(0xFFE6F0F8),
         borderRadius: BorderRadius.circular(16.0),
@@ -213,16 +280,10 @@ class TrafficInfoPage extends StatelessWidget {
                       color: Color(0xFF374151),
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '• 12 min - Reported 5 min ago',
-                    style: TextStyle(color: Colors.grey[700]),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '• 1,1 km ahead',
-                    style: TextStyle(color: Colors.grey[700]),
-                  ),
+                  if (subtitle != null) ...[
+                    const SizedBox(height: 8),
+                    Text(subtitle, style: TextStyle(color: Colors.grey[700])),
+                  ],
                 ],
               ),
             ),
