@@ -86,7 +86,7 @@ class _OfficeSeatsPageState extends State<OfficeSeatsPage>
     final floorId = _tabController.index + 1;
     final date = DateFormat('yyyy-MM-dd').format(_selectedDay!);
     final url = Uri.parse(
-        'http://192.168.0.194:8080/seats/freeSeats?floorId=$floorId&dateStart=${date}T00:00&dateEnd=${date}T23:59');
+        'http://10.0.2.2:8080/seats/freeSeats?floorId=$floorId&dateStart=${date}T00:00&dateEnd=${date}T23:59');
 
     try {
       // Perform API call and a minimum delay in parallel
@@ -124,7 +124,7 @@ class _OfficeSeatsPageState extends State<OfficeSeatsPage>
       _isConfirming = true;
     });
 
-    final url = Uri.parse('http://192.168.0.194:8080/reservations/seats');
+    final url = Uri.parse('http://10.0.2.2:8080/reservations/seats');
     final date = DateFormat('yyyy-MM-dd').format(_selectedDay!);
     final body = {
       'userId': 1, // Hardcoded userId
@@ -203,6 +203,12 @@ class _OfficeSeatsPageState extends State<OfficeSeatsPage>
   }
 
   Widget _buildCalendar() {
+    final DateTime today = DateTime.now();
+
+    // calculăm ultima zi a lunii următoare
+    final DateTime lastDayNextMonth =
+    DateTime(today.year, today.month + 2, 0); // 0 = ultima zi din luna precedentă
+
     return Container(
       color: AppColors.albastruInchis,
       child: Container(
@@ -214,11 +220,16 @@ class _OfficeSeatsPageState extends State<OfficeSeatsPage>
         child: Padding(
           padding: const EdgeInsets.all(8.0),
           child: TableCalendar(
-            firstDay: DateTime.now(),
-            lastDay: DateTime.utc(2030, 3, 14),
+            firstDay: today,
+            lastDay: lastDayNextMonth,
             focusedDay: _focusedDay,
             selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+
             onDaySelected: (selectedDay, focusedDay) {
+              // blocăm zilele de weekend
+              if (selectedDay.weekday == DateTime.saturday ||
+                  selectedDay.weekday == DateTime.sunday) return;
+
               if (!isSameDay(_selectedDay, selectedDay)) {
                 setState(() {
                   _selectedDay = selectedDay;
@@ -228,26 +239,30 @@ class _OfficeSeatsPageState extends State<OfficeSeatsPage>
                 _debouncedFetch();
               }
             },
+
             onPageChanged: (focusedDay) {
               _focusedDay = focusedDay;
             },
+
             headerStyle: const HeaderStyle(
               formatButtonVisible: false,
               titleCentered: true,
               titleTextStyle:
-                  TextStyle(color: AppColors.albastruInchis, fontSize: 18.0),
+              TextStyle(color: AppColors.albastruInchis, fontSize: 18.0),
               leftChevronIcon:
-                  Icon(Icons.chevron_left, color: AppColors.albastruInchis),
+              Icon(Icons.chevron_left, color: AppColors.albastruInchis),
               rightChevronIcon:
-                  Icon(Icons.chevron_right, color: AppColors.albastruInchis),
+              Icon(Icons.chevron_right, color: AppColors.albastruInchis),
             ),
+
             daysOfWeekStyle: const DaysOfWeekStyle(
               weekdayStyle: TextStyle(color: AppColors.albastruInchis),
-              weekendStyle: TextStyle(color: AppColors.albastruInchis),
+              weekendStyle: TextStyle(color: Colors.grey),
             ),
+
             calendarStyle: CalendarStyle(
               defaultTextStyle: const TextStyle(color: AppColors.albastruInchis),
-              weekendTextStyle: const TextStyle(color: AppColors.albastruInchis),
+              weekendTextStyle: const TextStyle(color: Colors.grey),
               outsideDaysVisible: false,
               todayDecoration: BoxDecoration(
                 color: AppColors.appBarGradientEnd,
@@ -259,12 +274,20 @@ class _OfficeSeatsPageState extends State<OfficeSeatsPage>
                 shape: BoxShape.circle,
               ),
               selectedTextStyle: const TextStyle(color: AppColors.gri),
+              disabledTextStyle: const TextStyle(color: Colors.grey),
             ),
+
+            // nu permite selectarea weekendurilor
+            enabledDayPredicate: (day) {
+              return day.weekday != DateTime.saturday &&
+                  day.weekday != DateTime.sunday;
+            },
           ),
         ),
       ),
     );
   }
+
 
   Widget _buildSeatGridContainer() {
     if (_isLoading) {

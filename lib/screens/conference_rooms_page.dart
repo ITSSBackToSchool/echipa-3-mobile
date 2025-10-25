@@ -115,11 +115,11 @@ class _ConferenceRoomsPageState extends State<ConferenceRoomsPage>
     final floorName = _floors[_tabController.index];
     final buildingName = _buildings[_selectedBuilding];
     final url = Uri.parse(
-        'http://192.168.0.194:8080/rooms/roomByFloorAndBuilding?floorName=$floorName&buildingName=$buildingName');
+        'http://10.0.2.2:8080/rooms/roomByFloorAndBuilding?floorName=$floorName&buildingName=$buildingName');
 
     try {
       final apiCall = http.get(url);
-      final delay = Future.delayed(const Duration(milliseconds: 500));
+      final delay = Future.delayed(const Duration(milliseconds: 400));
       final responses = await Future.wait([apiCall, delay]);
       final response = responses[0] as http.Response;
 
@@ -155,7 +155,7 @@ class _ConferenceRoomsPageState extends State<ConferenceRoomsPage>
 
     final date = DateFormat('yyyy-MM-dd').format(_selectedDay!);
     final url = Uri.parse(
-        'http://192.168.0.194:8080/rooms/timeslots?roomId=$roomId&dateStart=${date}T00:00&dateEnd=${date}T23:00');
+        'http://10.0.2.2:8080/rooms/timeslots?roomId=$roomId&dateStart=${date}T00:00&dateEnd=${date}T23:00');
 
     try {
       final apiCall = http.get(url);
@@ -197,7 +197,7 @@ class _ConferenceRoomsPageState extends State<ConferenceRoomsPage>
     final firstSlot = _timeSlots[_selectedTimeSlotIndices.first];
     final lastSlot = _timeSlots[_selectedTimeSlotIndices.last];
 
-    final url = Uri.parse('http://192.168.0.194:8080/reservations/rooms');
+    final url = Uri.parse('http://10.0.2.2:8080/reservations/rooms');
     final body = {
       'userId': 1,
       'roomId': _selectedRoomId,
@@ -231,12 +231,12 @@ class _ConferenceRoomsPageState extends State<ConferenceRoomsPage>
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
               backgroundColor: AppColors.rosu,
-              content: Text("Room was reserved by someone else.")),
+              content: Text("Room was already reserved by someone else")),
         );
         // Refetch on error
-        if(_selectedRoomId != null) _fetchTimeSlots(_selectedRoomId!);
+        if(_selectedRoomId != null) _fetchTimeSlots(_selectedRoomId!); 
       }
     } finally {
       if (mounted) {
@@ -299,6 +299,8 @@ class _ConferenceRoomsPageState extends State<ConferenceRoomsPage>
                   _buildCalendar(),
                   const SizedBox(height: 20),
                   _buildTimeSlots(),
+                  const SizedBox(height: 20),
+                  _buildLegend(),
                   const SizedBox(height: 20),
                   _buildActionButtons(),
                 ],
@@ -413,7 +415,7 @@ class _ConferenceRoomsPageState extends State<ConferenceRoomsPage>
             ClipRRect(
               borderRadius: BorderRadius.circular(12.0),
               child: Image.network(
-                'https://images.pexels.com/photos/6794971/pexels-photo-6794971.jpeg', // Placeholder for room.imageUrl
+                "https://images.pexels.com/photos/159213/hall-congress-architecture-building-159213.jpeg", // Placeholder for room.imageUrl
                 width: 80,
                 height: 80,
                 fit: BoxFit.cover,
@@ -481,6 +483,14 @@ class _ConferenceRoomsPageState extends State<ConferenceRoomsPage>
   }
 
   Widget _buildCalendar() {
+    final DateTime today = DateTime.now();
+
+
+    final DateTime firstDayNextMonth =
+    DateTime(today.year, today.month + 1, 1);
+    final DateTime lastDayNextMonth =
+    DateTime(today.year, today.month + 2, 0); // 0 = ultima zi din luna precedentă
+
     return Container(
       decoration: BoxDecoration(
         color: AppColors.gri,
@@ -488,35 +498,48 @@ class _ConferenceRoomsPageState extends State<ConferenceRoomsPage>
       ),
       padding: const EdgeInsets.all(8.0),
       child: TableCalendar(
-        firstDay: DateTime.now(),
-        lastDay: DateTime.utc(2030, 3, 14),
+        firstDay: today,
+        lastDay: lastDayNextMonth,
         focusedDay: _focusedDay,
         selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+
         onDaySelected: (selectedDay, focusedDay) {
+          // blocăm weekendurile (sâmbătă = 6, duminică = 7)
+          if (selectedDay.weekday == DateTime.saturday ||
+              selectedDay.weekday == DateTime.sunday) {
+            return;
+          }
+
           if (!isSameDay(_selectedDay, selectedDay)) {
-             setState(() {
-                _selectedDay = selectedDay;
-                _focusedDay = focusedDay;
-             });
-             if (_selectedRoomId != null) {
-                _fetchTimeSlots(_selectedRoomId!);
-             }
+            setState(() {
+              _selectedDay = selectedDay;
+              _focusedDay = focusedDay;
+            });
+            if (_selectedRoomId != null) {
+              _fetchTimeSlots(_selectedRoomId!);
+            }
           }
         },
-         headerStyle: const HeaderStyle(
+
+        headerStyle: const HeaderStyle(
           formatButtonVisible: false,
           titleCentered: true,
-          titleTextStyle: TextStyle(color: AppColors.albastruInchis, fontSize: 18.0),
-          leftChevronIcon: Icon(Icons.chevron_left, color: AppColors.albastruInchis),
-          rightChevronIcon: Icon(Icons.chevron_right, color: AppColors.albastruInchis),
+          titleTextStyle:
+          TextStyle(color: AppColors.albastruInchis, fontSize: 18.0),
+          leftChevronIcon:
+          Icon(Icons.chevron_left, color: AppColors.albastruInchis),
+          rightChevronIcon:
+          Icon(Icons.chevron_right, color: AppColors.albastruInchis),
         ),
+
         daysOfWeekStyle: const DaysOfWeekStyle(
           weekdayStyle: TextStyle(color: AppColors.albastruInchis),
-          weekendStyle: TextStyle(color: AppColors.albastruInchis),
+          weekendStyle: TextStyle(color: Colors.grey),
         ),
+
         calendarStyle: CalendarStyle(
           defaultTextStyle: const TextStyle(color: AppColors.albastruInchis),
-          weekendTextStyle: const TextStyle(color: AppColors.albastruInchis),
+          weekendTextStyle: const TextStyle(color: Colors.grey),
           outsideDaysVisible: false,
           todayDecoration: BoxDecoration(
             color: AppColors.appBarGradientEnd.withOpacity(0.5),
@@ -528,8 +551,60 @@ class _ConferenceRoomsPageState extends State<ConferenceRoomsPage>
             shape: BoxShape.circle,
           ),
           selectedTextStyle: const TextStyle(color: AppColors.gri),
+          disabledTextStyle: const TextStyle(color: Colors.grey),
         ),
+
+        enabledDayPredicate: (day) {
+          // nu permite selectarea weekendurilor
+          return day.weekday != DateTime.saturday &&
+              day.weekday != DateTime.sunday;
+        },
       ),
+    );
+  }
+
+
+
+
+  Widget _buildLegendItem(Color? color, String text) {
+    return Row(
+      children: [
+        Container(
+          width: 16,
+          height: 16,
+          decoration: BoxDecoration(
+              color: color, borderRadius: BorderRadius.circular(4)),
+        ),
+        const SizedBox(width: 8),
+        Text(text, style: const TextStyle(color: AppColors.albastruInchis)),
+      ],
+    );
+  }
+
+  Widget _buildLegend() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Colors on the scheme:',
+          style: TextStyle(color: AppColors.gri, fontWeight: FontWeight.bold, fontSize: 16),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+          decoration: BoxDecoration(
+            color: AppColors.gri,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildLegendItem(AppColors.verde, "Available"),
+              _buildLegendItem(AppColors.accent, "Selected"),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

@@ -70,11 +70,11 @@ class _MyBookingsPageState extends State<MyBookingsPage> {
     final int userId = 1;
     final status = _filters[_selectedFilterIndex];
     final url =
-        Uri.parse('http://192.168.0.194:8080/reservations/user?userId=$userId&status=$status');
+        Uri.parse('http://10.0.2.2:8080/reservations/user?userId=$userId&status=$status');
 
     try {
       final apiCall = http.get(url);
-      final delay = Future.delayed(const Duration(milliseconds: 500));
+      final delay = Future.delayed(const Duration(milliseconds: 400));
       final responses = await Future.wait([apiCall, delay]);
       final response = responses[0] as http.Response;
 
@@ -100,7 +100,7 @@ class _MyBookingsPageState extends State<MyBookingsPage> {
   }
 
   Future<void> _cancelReservation(int reservationId) async {
-    final url = Uri.parse('http://192.168.0.194:8080/reservations/$reservationId');
+    final url = Uri.parse('http://10.0.2.2:8080/reservations/$reservationId');
 
     try {
       final response = await http.put(url);
@@ -222,7 +222,7 @@ class _MyBookingsPageState extends State<MyBookingsPage> {
         child: Padding(
           padding: EdgeInsets.symmetric(vertical: 48.0),
           child: CircularProgressIndicator(
-            color: Colors.white,
+            color: AppColors.albastruInchis,
           ),
         ),
       );
@@ -379,8 +379,7 @@ class _MyBookingsPageState extends State<MyBookingsPage> {
     final startDateTime = DateTime.parse(booking.reservationDateStart);
     final endDateTime = DateTime.parse(booking.reservationDateEnd);
 
-    // ✅ Formatăm data și ora separat
-    final day = DateFormat('EEEE, dd MMM yyyy').format(startDateTime); // ex: "Saturday, 25 Oct 2025"
+    final day = DateFormat('yyyy-MM-dd').format(startDateTime);
     final startHour = DateFormat.jm().format(startDateTime);
     final endHour = DateFormat.jm().format(endDateTime);
 
@@ -418,16 +417,11 @@ class _MyBookingsPageState extends State<MyBookingsPage> {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      // ✅ Ziua rezervării
                       Text(
-                        day,
+                        'Date: $day',
                         style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.albastruInchis,
-                        ),
+                            color: AppColors.albastruInchis, fontSize: 18),
                       ),
-                      const SizedBox(height: 4),
                       Text('Start: $startHour',
                           style: const TextStyle(
                               color: AppColors.albastruInchis, fontSize: 18)),
@@ -441,7 +435,7 @@ class _MyBookingsPageState extends State<MyBookingsPage> {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(50.0),
                   child: Image.network(
-                    "https://images.pexels.com/photos/6794965/pexels-photo-6794965.jpeg", // Placeholder
+                    "https://images.pexels.com/photos/159213/hall-congress-architecture-building-159213.jpeg", // Placeholder
                     width: 100,
                     height: 100,
                     fit: BoxFit.cover,
