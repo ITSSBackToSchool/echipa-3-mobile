@@ -115,7 +115,7 @@ class _ConferenceRoomsPageState extends State<ConferenceRoomsPage>
     final floorName = _floors[_tabController.index];
     final buildingName = _buildings[_selectedBuilding];
     final url = Uri.parse(
-        'http://10.0.2.2:8080/rooms/roomByFloorAndBuilding?floorName=$floorName&buildingName=$buildingName');
+        'http://192.168.0.194:8080/rooms/roomByFloorAndBuilding?floorName=$floorName&buildingName=$buildingName');
 
     try {
       final apiCall = http.get(url);
@@ -155,7 +155,7 @@ class _ConferenceRoomsPageState extends State<ConferenceRoomsPage>
 
     final date = DateFormat('yyyy-MM-dd').format(_selectedDay!);
     final url = Uri.parse(
-        'http://10.0.2.2:8080/rooms/timeslots?roomId=$roomId&dateStart=${date}T00:00&dateEnd=${date}T23:00');
+        'http://192.168.0.194:8080/rooms/timeslots?roomId=$roomId&dateStart=${date}T00:00&dateEnd=${date}T23:00');
 
     try {
       final apiCall = http.get(url);
@@ -197,7 +197,7 @@ class _ConferenceRoomsPageState extends State<ConferenceRoomsPage>
     final firstSlot = _timeSlots[_selectedTimeSlotIndices.first];
     final lastSlot = _timeSlots[_selectedTimeSlotIndices.last];
 
-    final url = Uri.parse('http://10.0.2.2:8080/reservations/rooms');
+    final url = Uri.parse('http://192.168.0.194:8080/reservations/rooms');
     final body = {
       'userId': 1,
       'roomId': _selectedRoomId,
@@ -288,7 +288,7 @@ class _ConferenceRoomsPageState extends State<ConferenceRoomsPage>
               ),
             ),
             Container(
-              color: AppColors.gri,
+              color: AppColors.albastruInchis,
               child: _buildRoomsListContainer(),
             ),
             Container(
@@ -413,7 +413,7 @@ class _ConferenceRoomsPageState extends State<ConferenceRoomsPage>
             ClipRRect(
               borderRadius: BorderRadius.circular(12.0),
               child: Image.network(
-                'https://via.placeholder.com/80', // Placeholder for room.imageUrl
+                'https://images.pexels.com/photos/6794971/pexels-photo-6794971.jpeg', // Placeholder for room.imageUrl
                 width: 80,
                 height: 80,
                 fit: BoxFit.cover,

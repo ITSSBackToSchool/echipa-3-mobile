@@ -1,7 +1,45 @@
+import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
 import 'package:seat_booking_mobile/utils/app_colors.dart';
 import 'package:seat_booking_mobile/widgets/custom_app_bar.dart';
 import 'package:seat_booking_mobile/widgets/custom_drawer.dart';
+
+// Model
+class Booking {
+  final int id;
+  final String status;
+  final String? seatNumber;
+  final String? roomName;
+  final String? floorName;
+  final String reservationDateStart;
+  final String reservationDateEnd;
+
+  Booking(
+      {required this.id,
+      required this.status,
+      this.seatNumber,
+      this.roomName,
+      this.floorName,
+      required this.reservationDateStart,
+      required this.reservationDateEnd});
+
+  bool get isSeatBooking => seatNumber != null;
+
+  factory Booking.fromJson(Map<String, dynamic> json) {
+    return Booking(
+      id: json['id'],
+      status: json['status'],
+      seatNumber: json['seatNumber'],
+      roomName: json['roomName'],
+      floorName: json['floorName'],
+      reservationDateStart: json['reservationDateStart'],
+      reservationDateEnd: json['reservationDateEnd'],
+    );
+  }
+}
 
 class MyBookingsPage extends StatefulWidget {
   const MyBookingsPage({super.key});
@@ -11,61 +49,123 @@ class MyBookingsPage extends StatefulWidget {
 }
 
 class _MyBookingsPageState extends State<MyBookingsPage> {
-  int _selectedFilterIndex = 0; // 0: Active, 1: Completed, 2: Canceled
-  final List<String> _filters = ['Active', 'Completed', 'Canceled'];
+  int _selectedFilterIndex = 0; // 0: ACTIVE, 1: COMPLETED, 2: CANCELLED
+  final List<String> _filters = ['ACTIVE', 'COMPLETED', 'CANCELLED'];
 
-  // Mock data for bookings
-  final List<Map<String, dynamic>> _allBookings = [
-    {
-      'id': 1,
-      'type': 'seat',
-      'title': 'Seat 2',
-      'floor': 'Parter',
-      'date': '2025-10-19',
-      'status': 'Active'
-    },
-    {
-      'id': 2,
-      'type': 'room',
-      'title': 'Lounge',
-      'start': '2025-10-20 10:00',
-      'end': '2025-10-20 12:00',
-      'status': 'Active',
-      'image': 'https://images.pexels.com/photos/271643/pexels-photo-271643.jpeg'
-    },
-    {
-      'id': 3,
-      'type': 'seat',
-      'title': 'Seat 5',
-      'floor': 'Etaj 1',
-      'date': '2025-09-15',
-      'status': 'Completed'
-    },
-    {
-      'id': 4,
-      'type': 'room',
-      'title': 'Meeting Room A',
-      'start': '2025-09-18 14:00',
-      'end': '2025-09-18 15:00',
-      'status': 'Completed',
-      'image': 'https://images.pexels.com/photos/1181403/pexels-photo-1181403.jpeg'
-    },
-    {
-      'id': 5,
-      'type': 'seat',
-      'title': 'Seat 12',
-      'floor': 'Etaj 2',
-      'date': '2025-10-22',
-      'status': 'Canceled'
-    },
-  ];
+  List<Booking> _bookings = [];
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchBookings();
+  }
+
+  Future<void> _fetchBookings() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+    final int userId = 1;
+    final status = _filters[_selectedFilterIndex];
+    final url =
+        Uri.parse('http://192.168.0.194:8080/reservations/user?userId=$userId&status=$status');
+
+    try {
+      final apiCall = http.get(url);
+      final delay = Future.delayed(const Duration(milliseconds: 500));
+      final responses = await Future.wait([apiCall, delay]);
+      final response = responses[0] as http.Response;
+
+      if (mounted) {
+        if (response.statusCode == 200) {
+          final List<dynamic> data = json.decode(response.body);
+          setState(() {
+            _bookings = data.map((json) => Booking.fromJson(json)).toList();
+            _isLoading = false;
+          });
+        } else {
+          throw Exception('Server error: ${response.statusCode}');
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = e.toString();
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _cancelReservation(int reservationId) async {
+    final url = Uri.parse('http://192.168.0.194:8080/reservations/$reservationId');
+
+    try {
+      final response = await http.put(url);
+
+      if (mounted) {
+        if (response.statusCode == 200 || response.statusCode == 204) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              backgroundColor: AppColors.verde,
+              content: Text('Booking cancelled successfully!'),
+            ),
+          );
+          _fetchBookings();
+        } else {
+          throw Exception('Failed to cancel booking: ${response.body}');
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: AppColors.rosu,
+            content: Text('Error: ${e.toString()}'),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _showCancelConfirmationDialog(int reservationId) async {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false, // user must tap button!
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Confirm Cancellation'),
+          content: const SingleChildScrollView(
+            child: ListBody(
+              children: <Widget>[
+                Text('Are you sure you want to cancel this booking?'),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('No'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: const Text('Yes'),
+              onPressed: () {
+                Navigator.of(context).pop();
+                _cancelReservation(reservationId);
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final filteredBookings = _allBookings
-        .where((b) => b['status'] == _filters[_selectedFilterIndex])
-        .toList();
-
     return Scaffold(
       backgroundColor: AppColors.gri,
       appBar: const CustomAppBar(title: 'My bookings'),
@@ -74,18 +174,7 @@ class _MyBookingsPageState extends State<MyBookingsPage> {
         children: [
           _buildFilterButtons(),
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16.0),
-              itemCount: filteredBookings.length,
-              itemBuilder: (context, index) {
-                final booking = filteredBookings[index];
-                if (booking['type'] == 'seat') {
-                  return _buildSeatBookingCard(booking);
-                } else {
-                  return _buildRoomBookingCard(booking);
-                }
-              },
-            ),
+            child: _buildBookingsList(),
           ),
         ],
       ),
@@ -103,7 +192,10 @@ class _MyBookingsPageState extends State<MyBookingsPage> {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8.0),
               child: ElevatedButton(
-                onPressed: () => setState(() => _selectedFilterIndex = index),
+                onPressed: () {
+                  setState(() => _selectedFilterIndex = index);
+                  _fetchBookings();
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: isSelected
                       ? AppColors.albastruInchisClick
@@ -112,7 +204,9 @@ class _MyBookingsPageState extends State<MyBookingsPage> {
                       borderRadius: BorderRadius.circular(8)),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
-                child: Text(_filters[index],
+                child: Text(
+                    _filters[index].substring(0, 1) +
+                        _filters[index].substring(1).toLowerCase(),
                     style: const TextStyle(color: AppColors.gri)),
               ),
             ),
@@ -122,14 +216,68 @@ class _MyBookingsPageState extends State<MyBookingsPage> {
     );
   }
 
-  Widget _buildCancelButton() {
+  Widget _buildBookingsList() {
+    if (_isLoading) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 48.0),
+          child: CircularProgressIndicator(
+            color: Colors.white,
+          ),
+        ),
+      );
+    } else if (_errorMessage != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text('An error occurred: $_errorMessage',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: AppColors.rosu)),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: _fetchBookings,
+                style: ElevatedButton.styleFrom(backgroundColor: AppColors.gri),
+                child: const Text('Retry',
+                    style: TextStyle(color: AppColors.albastruInchis)),
+              ),
+            ],
+          ),
+        ),
+      );
+    } else if (_bookings.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(32.0),
+          child: Text(
+            'No bookings found for this status.',
+            style: TextStyle(color: AppColors.gri),
+          ),
+        ),
+      );
+    } else {
+      return ListView.builder(
+        padding: const EdgeInsets.all(16.0),
+        itemCount: _bookings.length,
+        itemBuilder: (context, index) {
+          final booking = _bookings[index];
+          if (booking.isSeatBooking) {
+            return _buildSeatBookingCard(booking);
+          } else {
+            return _buildRoomBookingCard(booking);
+          }
+        },
+      );
+    }
+  }
+
+  Widget _buildCancelButton({required VoidCallback onPressed}) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () {
-          // ignore: avoid_print
-          print("Cancel tapped!");
-        },
+        onTap: onPressed,
         borderRadius: BorderRadius.circular(25),
         child: Ink(
           decoration: BoxDecoration(
@@ -156,7 +304,9 @@ class _MyBookingsPageState extends State<MyBookingsPage> {
     );
   }
 
-  Widget _buildSeatBookingCard(Map<String, dynamic> booking) {
+  Widget _buildSeatBookingCard(Booking booking) {
+    final date = DateFormat('yyyy-MM-dd')
+        .format(DateTime.parse(booking.reservationDateStart));
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
@@ -182,16 +332,16 @@ class _MyBookingsPageState extends State<MyBookingsPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(booking['title'],
+                      Text(booking.seatNumber ?? 'N/A',
                           style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 32,
                               color: AppColors.albastruInchis)),
                       const SizedBox(height: 8),
-                      Text('Floor: ${booking['floor']}',
+                      Text('Floor: ${booking.floorName ?? 'N/A'}',
                           style: const TextStyle(
                               color: AppColors.albastruInchis, fontSize: 18)),
-                      Text('Date: ${booking['date']}',
+                      Text('Date: $date',
                           style: const TextStyle(
                               color: AppColors.albastruInchis, fontSize: 18)),
                     ],
@@ -214,9 +364,10 @@ class _MyBookingsPageState extends State<MyBookingsPage> {
                 ),
               ],
             ),
-            if (booking['status'] == 'Active') ...[
+            if (booking.status == 'ACTIVE') ...[
               const SizedBox(height: 24),
-              _buildCancelButton(),
+              _buildCancelButton(
+                  onPressed: () => _showCancelConfirmationDialog(booking.id)),
             ],
           ],
         ),
@@ -224,7 +375,15 @@ class _MyBookingsPageState extends State<MyBookingsPage> {
     );
   }
 
-  Widget _buildRoomBookingCard(Map<String, dynamic> booking) {
+  Widget _buildRoomBookingCard(Booking booking) {
+    final startDateTime = DateTime.parse(booking.reservationDateStart);
+    final endDateTime = DateTime.parse(booking.reservationDateEnd);
+
+    // ✅ Formatăm data și ora separat
+    final day = DateFormat('EEEE, dd MMM yyyy').format(startDateTime); // ex: "Saturday, 25 Oct 2025"
+    final startHour = DateFormat.jm().format(startDateTime);
+    final endHour = DateFormat.jm().format(endDateTime);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
@@ -250,16 +409,29 @@ class _MyBookingsPageState extends State<MyBookingsPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(booking['title'],
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 32,
-                              color: AppColors.albastruInchis)),
+                      Text(
+                        booking.roomName ?? 'N/A',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 32,
+                          color: AppColors.albastruInchis,
+                        ),
+                      ),
                       const SizedBox(height: 8),
-                      Text('Start: ${booking['start']}',
+                      // ✅ Ziua rezervării
+                      Text(
+                        day,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.albastruInchis,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text('Start: $startHour',
                           style: const TextStyle(
                               color: AppColors.albastruInchis, fontSize: 18)),
-                      Text('End: ${booking['end']}',
+                      Text('End: $endHour',
                           style: const TextStyle(
                               color: AppColors.albastruInchis, fontSize: 18)),
                     ],
@@ -269,7 +441,7 @@ class _MyBookingsPageState extends State<MyBookingsPage> {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(50.0),
                   child: Image.network(
-                    booking['image'],
+                    "https://images.pexels.com/photos/6794965/pexels-photo-6794965.jpeg", // Placeholder
                     width: 100,
                     height: 100,
                     fit: BoxFit.cover,
@@ -286,13 +458,14 @@ class _MyBookingsPageState extends State<MyBookingsPage> {
                 ),
               ],
             ),
-            if (booking['status'] == 'Active') ...[
+            if (booking.status == 'ACTIVE') ...[
               const SizedBox(height: 24),
-              _buildCancelButton(),
+              _buildCancelButton( onPressed: () => _showCancelConfirmationDialog(booking.id)),
             ],
           ],
         ),
       ),
     );
   }
+
 }
