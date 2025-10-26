@@ -86,7 +86,7 @@ class _OfficeSeatsPageState extends State<OfficeSeatsPage>
     final floorId = _tabController.index + 1;
     final date = DateFormat('yyyy-MM-dd').format(_selectedDay!);
     final url = Uri.parse(
-        'http://10.0.2.2:8080/seats/freeSeats?floorId=$floorId&dateStart=${date}T00:00&dateEnd=${date}T23:59');
+        'http://10.0.2.2:8090/seats/freeSeats?floorId=$floorId&dateStart=${date}T00:00&dateEnd=${date}T23:59');
 
     try {
       // Perform API call and a minimum delay in parallel
@@ -124,7 +124,7 @@ class _OfficeSeatsPageState extends State<OfficeSeatsPage>
       _isConfirming = true;
     });
 
-    final url = Uri.parse('http://10.0.2.2:8080/reservations/seats');
+    final url = Uri.parse('http://10.0.2.2:8090/reservations/seats');
     final date = DateFormat('yyyy-MM-dd').format(_selectedDay!);
     final body = {
       'userId': 1, // Hardcoded userId
