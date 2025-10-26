@@ -1,8 +1,29 @@
+import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
 import 'package:seat_booking_mobile/utils/app_colors.dart';
 import 'package:seat_booking_mobile/widgets/custom_app_bar.dart';
 import 'package:seat_booking_mobile/widgets/custom_drawer.dart';
 import 'package:table_calendar/table_calendar.dart';
+
+// Seat Model
+class Seat {
+  final int id;
+  final String seatNumber;
+  final bool occupied;
+
+  Seat({required this.id, required this.seatNumber, required this.occupied});
+
+  factory Seat.fromJson(Map<String, dynamic> json) {
+    return Seat(
+      id: json['id'],
+      seatNumber: json['seatNumber'],
+      occupied: json['occupied'],
+    );
+  }
+}
 
 class OfficeSeatsPage extends StatefulWidget {
   const OfficeSeatsPage({super.key});
@@ -11,131 +32,322 @@ class OfficeSeatsPage extends StatefulWidget {
   State<OfficeSeatsPage> createState() => _OfficeSeatsPageState();
 }
 
-class _OfficeSeatsPageState extends State<OfficeSeatsPage> {
+class _OfficeSeatsPageState extends State<OfficeSeatsPage>
+    with SingleTickerProviderStateMixin {
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
-  int? _selectedSeatIndex;
+  int? _selectedSeatId;
+  late TabController _tabController;
+  final List<String> _floors = ['Parter', 'Etaj 1', 'Etaj 2'];
+  bool _isConfirming = false;
+  Timer? _debounce;
+
+  // State management for seats
+  List<Seat> _seats = [];
+  bool _isLoading = true;
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
     _selectedDay = _focusedDay;
+    _tabController = TabController(length: 3, vsync: this);
+    _fetchSeats(); // Initial fetch
+
+    _tabController.addListener(() {
+      setState(() {
+        _selectedSeatId = null;
+      });
+      _debouncedFetch();
+    });
   }
 
   @override
+  void dispose() {
+    _tabController.dispose();
+    _debounce?.cancel();
+    super.dispose();
+  }
+
+  void _debouncedFetch() {
+    if (_debounce?.isActive ?? false) _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), () { // Reduced debounce time
+      _fetchSeats();
+    });
+  }
+
+  Future<void> _fetchSeats() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    final floorId = _tabController.index + 1;
+    final date = DateFormat('yyyy-MM-dd').format(_selectedDay!);
+    final url = Uri.parse(
+        'http://10.0.2.2:8080/seats/freeSeats?floorId=$floorId&dateStart=${date}T00:00&dateEnd=${date}T23:59');
+
+    try {
+      // Perform API call and a minimum delay in parallel
+      final apiCall = http.get(url);
+      final delay = Future.delayed(const Duration(milliseconds: 500));
+
+      final responses = await Future.wait([apiCall, delay]);
+      final response = responses[0] as http.Response;
+
+      if (mounted) {
+        if (response.statusCode == 200) {
+          final List<dynamic> data = json.decode(response.body);
+          setState(() {
+            _seats = data.map((json) => Seat.fromJson(json)).toList();
+            _isLoading = false;
+          });
+        } else {
+          throw Exception('Server error: ${response.statusCode}');
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = e.toString();
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+    Future<void> _confirmReservation() async {
+    if (_selectedSeatId == null) return;
+
+    setState(() {
+      _isConfirming = true;
+    });
+
+    final url = Uri.parse('http://10.0.2.2:8080/reservations/seats');
+    final date = DateFormat('yyyy-MM-dd').format(_selectedDay!);
+    final body = {
+      'userId': 1, // Hardcoded userId
+      'seatIds': [_selectedSeatId],
+      'reservationDateStart': '${date}T00:00:00',
+      'reservationDateEnd': '${date}T23:59:00',
+    };
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(body),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              backgroundColor: AppColors.verde,
+              content: Text('Reservation confirmed successfully!')),
+        );
+        setState(() {
+          _selectedSeatId = null;
+        });
+        _fetchSeats(); // Refresh seats after confirmation
+      } else {
+        throw Exception('Failed to confirm: ${response.body}');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            backgroundColor: AppColors.rosu, content: Text('Error: ${e.toString()}')),
+      );
+      _fetchSeats(); // Refetch seats on error
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isConfirming = false;
+        });
+      }
+    }
+  }
+
+
+  @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 3,
-      child: Scaffold(
-        backgroundColor: AppColors.gri,
-        appBar: const CustomAppBar(title: 'Office Seats'),
-        drawer: const CustomDrawer(),
-        body: Column(
+    return Scaffold(
+      backgroundColor: AppColors.albastruInchis,
+      appBar: const CustomAppBar(title: 'Office Seats'),
+      drawer: const CustomDrawer(),
+      body: SingleChildScrollView(
+        child: Column(
           children: [
+            _buildCalendar(),
             Container(
-              color: AppColors.albastruInchis,
-              child: Container(
-                margin: const EdgeInsets.all(16.0),
-                decoration: BoxDecoration(
-                  color: AppColors.gri,
-                  borderRadius: BorderRadius.circular(12.0),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: TableCalendar(
-                    firstDay: DateTime.now(),
-                    lastDay: DateTime.utc(2030, 3, 14),
-                    focusedDay: _focusedDay,
-                    selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-                    onDaySelected: (selectedDay, focusedDay) {
-                      if (!isSameDay(_selectedDay, selectedDay)) {
-                        setState(() {
-                          _selectedDay = selectedDay;
-                          _focusedDay = focusedDay;
-                        });
-                      }
-                    },
-                    onPageChanged: (focusedDay) {
-                      _focusedDay = focusedDay;
-                    },
-                    headerStyle: const HeaderStyle(
-                      formatButtonVisible: false,
-                      titleCentered: true,
-                      titleTextStyle: TextStyle(color: AppColors.albastruInchis, fontSize: 18.0),
-                      leftChevronIcon: Icon(Icons.chevron_left, color: AppColors.albastruInchis),
-                      rightChevronIcon: Icon(Icons.chevron_right, color: AppColors.albastruInchis),
-                    ),
-                    daysOfWeekStyle: const DaysOfWeekStyle(
-                      weekdayStyle: TextStyle(color: AppColors.albastruInchis),
-                      weekendStyle: TextStyle(color: AppColors.albastruInchis),
-                    ),
-                    calendarStyle: CalendarStyle(
-                      defaultTextStyle: const TextStyle(color: AppColors.albastruInchis),
-                      weekendTextStyle: const TextStyle(color: AppColors.albastruInchis),
-                      outsideDaysVisible: false,
-                      todayDecoration: BoxDecoration(
-                        color: AppColors.appBarGradientEnd,
-                        shape: BoxShape.circle,
-                      ),
-                      todayTextStyle: const TextStyle(color: AppColors.gri),
-                      selectedDecoration: BoxDecoration(
-                        color: AppColors.accent,
-                        shape: BoxShape.circle,
-                      ),
-                      selectedTextStyle: const TextStyle(color: AppColors.gri),
-                    ),
-                  ),
-                ),
+              color: AppColors.gri,
+              child: TabBar(
+                controller: _tabController,
+                indicatorColor: AppColors.accent,
+                labelColor: AppColors.albastruInchis,
+                unselectedLabelColor: AppColors.albastruInchis.withOpacity(0.6),
+                tabs: _floors.map((floor) => Tab(text: floor)).toList(),
               ),
             ),
             Container(
               color: AppColors.gri,
-              child: const TabBar(
-                indicatorColor: AppColors.accent,
-                labelColor: AppColors.albastruInchis,
-                unselectedLabelColor: AppColors.albastruInchis,
-                tabs: [
-                  Tab(text: 'Parter'),
-                  Tab(text: 'Etaj 1'),
-                  Tab(text: 'Etaj 2'),
-                ],
-              ),
+              child: _buildSeatGridContainer(),
             ),
-            Expanded(
-              child: Container(
-                color: AppColors.gri,
-                child: TabBarView(
-                  children: [
-                    _buildSeatGrid(),
-                    _buildSeatGrid(),
-                    _buildSeatGrid(),
-                  ],
-                ),
-              ),
-            ),
+            _buildBottomSection(),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSeatGrid() {
+  Widget _buildCalendar() {
+    final DateTime today = DateTime.now();
+
+    // calculăm ultima zi a lunii următoare
+    final DateTime lastDayNextMonth =
+    DateTime(today.year, today.month + 2, 0); // 0 = ultima zi din luna precedentă
+
+    return Container(
+      color: AppColors.albastruInchis,
+      child: Container(
+        margin: const EdgeInsets.all(16.0),
+        decoration: BoxDecoration(
+          color: AppColors.gri,
+          borderRadius: BorderRadius.circular(12.0),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: TableCalendar(
+            firstDay: today,
+            lastDay: lastDayNextMonth,
+            focusedDay: _focusedDay,
+            selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+
+            onDaySelected: (selectedDay, focusedDay) {
+              // blocăm zilele de weekend
+              if (selectedDay.weekday == DateTime.saturday ||
+                  selectedDay.weekday == DateTime.sunday) return;
+
+              if (!isSameDay(_selectedDay, selectedDay)) {
+                setState(() {
+                  _selectedDay = selectedDay;
+                  _focusedDay = focusedDay;
+                  _selectedSeatId = null;
+                });
+                _debouncedFetch();
+              }
+            },
+
+            onPageChanged: (focusedDay) {
+              _focusedDay = focusedDay;
+            },
+
+            headerStyle: const HeaderStyle(
+              formatButtonVisible: false,
+              titleCentered: true,
+              titleTextStyle:
+              TextStyle(color: AppColors.albastruInchis, fontSize: 18.0),
+              leftChevronIcon:
+              Icon(Icons.chevron_left, color: AppColors.albastruInchis),
+              rightChevronIcon:
+              Icon(Icons.chevron_right, color: AppColors.albastruInchis),
+            ),
+
+            daysOfWeekStyle: const DaysOfWeekStyle(
+              weekdayStyle: TextStyle(color: AppColors.albastruInchis),
+              weekendStyle: TextStyle(color: Colors.grey),
+            ),
+
+            calendarStyle: CalendarStyle(
+              defaultTextStyle: const TextStyle(color: AppColors.albastruInchis),
+              weekendTextStyle: const TextStyle(color: Colors.grey),
+              outsideDaysVisible: false,
+              todayDecoration: BoxDecoration(
+                color: AppColors.appBarGradientEnd,
+                shape: BoxShape.circle,
+              ),
+              todayTextStyle: const TextStyle(color: AppColors.gri),
+              selectedDecoration: BoxDecoration(
+                color: AppColors.accent,
+                shape: BoxShape.circle,
+              ),
+              selectedTextStyle: const TextStyle(color: AppColors.gri),
+              disabledTextStyle: const TextStyle(color: Colors.grey),
+            ),
+
+            // nu permite selectarea weekendurilor
+            enabledDayPredicate: (day) {
+              return day.weekday != DateTime.saturday &&
+                  day.weekday != DateTime.sunday;
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+
+  Widget _buildSeatGridContainer() {
+    if (_isLoading) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 48.0),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    } else if (_errorMessage != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text('An error occurred: $_errorMessage', textAlign: TextAlign.center, style: const TextStyle(color: AppColors.rosu)),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: _fetchSeats,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.albastruInchis,
+                ),
+                child: const Text('Retry', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          ),
+        ),
+      );
+    } else if (_seats.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(32.0),
+          child: Text('No seats available.'),
+        ),
+      );
+    } else {
+      return _buildSeatGrid(_seats);
+    }
+  }
+
+  Widget _buildSeatGrid(List<Seat> seats) {
     return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
       padding: const EdgeInsets.all(24.0),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 4,
-        crossAxisSpacing: 24.0,
-        mainAxisSpacing: 24.0,
+        crossAxisCount: 5,
+        crossAxisSpacing: 16.0,
+        mainAxisSpacing: 16.0,
       ),
-      itemCount: 16,
+      itemCount: seats.length,
       itemBuilder: (context, index) {
-        final bool isAvailable = ![2, 5, 8, 9, 13, 14].contains(index);
-        final bool isSelected = _selectedSeatIndex == index;
+        final seat = seats[index];
+        final isSelected = _selectedSeatId == seat.id;
 
         Color seatColor;
         if (isSelected) {
-          seatColor = AppColors.accent;
-        } else if (isAvailable) {
+          seatColor = AppColors.portocaliu;
+        } else if (!seat.occupied) {
           seatColor = AppColors.verde;
         } else {
           seatColor = AppColors.rosu;
@@ -143,19 +355,192 @@ class _OfficeSeatsPageState extends State<OfficeSeatsPage> {
 
         return GestureDetector(
           onTap: () {
-            if (isAvailable) {
+            if (!seat.occupied) {
               setState(() {
-                if (_selectedSeatIndex == index) {
-                  _selectedSeatIndex = null;
+                if (_selectedSeatId == seat.id) {
+                  _selectedSeatId = null;
                 } else {
-                  _selectedSeatIndex = index;
+                  _selectedSeatId = seat.id;
                 }
               });
             }
           },
-          child: Icon(Icons.event_seat, color: seatColor, size: 40),
+          child: Tooltip(
+            message: seat.seatNumber,
+            child: Icon(Icons.event_seat, color: seatColor, size: 40),
+          ),
         );
       },
+    );
+  }
+
+  Widget _buildBottomSection() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      color: AppColors.albastruInchis,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildLegend(),
+          const SizedBox(height: 20),
+          _buildSelectedSeatInfo(),
+          const SizedBox(height: 20),
+          _buildActionButtons(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLegend() {
+    return Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.gri,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "Tables on the scheme:",
+              style: TextStyle(
+                  color: AppColors.albastruInchis.withOpacity(0.8),
+                  fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildLegendItem(AppColors.verde, "Available"),
+                _buildLegendItem(AppColors.portocaliu, "Selected"),
+                _buildLegendItem(AppColors.rosu, "Unavailable"),
+              ],
+            ),
+          ],
+        ));
+  }
+
+  Widget _buildLegendItem(Color? color, String text) {
+    return Row(
+      children: [
+        Container(
+          width: 16,
+          height: 16,
+          decoration: BoxDecoration(
+              color: color, borderRadius: BorderRadius.circular(4)),
+        ),
+        const SizedBox(width: 8),
+        Text(text, style: const TextStyle(color: AppColors.albastruInchis)),
+      ],
+    );
+  }
+
+  Widget _buildSelectedSeatInfo() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "Selected seat:",
+          style: TextStyle(
+              color: AppColors.gri, fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          height: 60,
+          decoration: BoxDecoration(
+            color: AppColors.gri,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Center(
+                  child: Text(
+                    _selectedSeatId != null
+                        ? "Floor: ${_floors[_tabController.index]}"
+                        : "Floor: -",
+                    style: const TextStyle(
+                        color: AppColors.albastruInchis,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+              const VerticalDivider(
+                color: AppColors.albastruInchis,
+                thickness: 1,
+                width: 1,
+                indent: 10,
+                endIndent: 10,
+              ),
+              Expanded(
+                child: Center(
+                  child: Text(
+                    _selectedSeatId != null
+                        ? "Seat: $_selectedSeatId"
+                        : "Seat: -",
+                    style: const TextStyle(
+                        color: AppColors.albastruInchis,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionButtons() {
+    return Column(
+      children: [
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton(
+            onPressed: () {
+              setState(() {
+                _selectedSeatId = null;
+              });
+            },
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 14.0),
+              side: const BorderSide(color: AppColors.gri),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Reset',
+                style: TextStyle(
+                    color: AppColors.gri,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold)),
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: _selectedSeatId == null || _isConfirming
+                ? null
+                : _confirmReservation,
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 14.0),
+              backgroundColor: AppColors.gri,
+              disabledBackgroundColor: Colors.grey.withOpacity(0.5),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+            child: _isConfirming
+                ? const CircularProgressIndicator(color: AppColors.albastruInchis)
+                : const Text('Confirm',
+                    style: TextStyle(
+                        color: AppColors.albastruInchis,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold)),
+          ),
+        ),
+      ],
     );
   }
 }
