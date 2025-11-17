@@ -70,7 +70,7 @@ class _MyBookingsPageState extends State<MyBookingsPage> {
     final int userId = 1;
     final status = _filters[_selectedFilterIndex];
     final url =
-        Uri.parse('http://10.0.2.2:8090/reservations/user?userId=$userId&status=$status');
+        Uri.parse('http://10.0.2.2:8080/reservations/user?userId=$userId&status=$status');
 
     try {
       final apiCall = http.get(url);
@@ -100,7 +100,7 @@ class _MyBookingsPageState extends State<MyBookingsPage> {
   }
 
   Future<void> _cancelReservation(int reservationId) async {
-    final url = Uri.parse('http://10.0.2.2:8090/reservations/$reservationId');
+    final url = Uri.parse('http://10.0.2.2:8080/reservations/$reservationId');
 
     try {
       final response = await http.put(url);

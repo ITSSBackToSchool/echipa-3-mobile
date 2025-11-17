@@ -115,7 +115,7 @@ class _ConferenceRoomsPageState extends State<ConferenceRoomsPage>
     final floorName = _floors[_tabController.index];
     final buildingName = _buildings[_selectedBuilding];
     final url = Uri.parse(
-        'http://10.0.2.2:8090/rooms/roomByFloorAndBuilding?floorName=$floorName&buildingName=$buildingName');
+        'http://10.0.2.2:8080/rooms/roomByFloorAndBuilding?floorName=$floorName&buildingName=$buildingName');
 
     try {
       final apiCall = http.get(url);
@@ -155,7 +155,7 @@ class _ConferenceRoomsPageState extends State<ConferenceRoomsPage>
 
     final date = DateFormat('yyyy-MM-dd').format(_selectedDay!);
     final url = Uri.parse(
-        'http://10.0.2.2:8090/rooms/timeslots?roomId=$roomId&dateStart=${date}T00:00&dateEnd=${date}T23:00');
+        'http://10.0.2.2:8080/rooms/timeslots?roomId=$roomId&dateStart=${date}T00:00&dateEnd=${date}T23:00');
 
     try {
       final apiCall = http.get(url);
@@ -197,7 +197,7 @@ class _ConferenceRoomsPageState extends State<ConferenceRoomsPage>
     final firstSlot = _timeSlots[_selectedTimeSlotIndices.first];
     final lastSlot = _timeSlots[_selectedTimeSlotIndices.last];
 
-    final url = Uri.parse('http://10.0.2.2:8090/reservations/rooms');
+    final url = Uri.parse('http://10.0.2.2:8080/reservations/rooms');
     final body = {
       'userId': 1,
       'roomId': _selectedRoomId,

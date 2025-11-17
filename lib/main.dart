@@ -17,7 +17,7 @@ void main() {
 
 /// ===== Config =====
 const String BASE_URL =
-    'http://10.0.2.2:8090'; // Emulator Android -> 10.0.2.2; pe device: IP-ul PC-ului
+    'http://10.0.2.2:8080'; // Emulator Android -> 10.0.2.2; pe device: IP-ul PC-ului
 const int USER_ID = 1;
 const String COMPANY_ADDRESS = 'Aleea Tibles nr.3';
 const _workStartH = 9, _workStartM = 0, _workEndH = 17, _workEndM = 0;
